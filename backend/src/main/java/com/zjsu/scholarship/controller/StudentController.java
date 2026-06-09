@@ -10,6 +10,7 @@ import com.zjsu.scholarship.security.RequireRole;
 import com.zjsu.scholarship.service.EvaluationService;
 import com.zjsu.scholarship.service.FileStorageService;
 import com.zjsu.scholarship.service.RankingService;
+import com.zjsu.scholarship.service.ScholarshipService;
 import com.zjsu.scholarship.service.ScoreCalcService;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -41,6 +42,9 @@ public class StudentController {
     private final FileStorageService fileStorageService;
     private final ScoreCalcService scoreCalcService;
     private final RankingService rankingService;
+    private final ScholarshipService scholarshipService;
+    private final AppealRecordMapper appealMapper;
+    private final GraduateExamApplicationMapper geMapper;
 
     public StudentController(StudentMapper studentMapper, AcademicYearMapper yearMapper,
                              EvaluationRecordMapper evalMapper, CourseGradeMapper courseGradeMapper,
@@ -57,7 +61,10 @@ public class StudentController {
                              EvaluationService evaluationService,
                              FileStorageService fileStorageService,
                              ScoreCalcService scoreCalcService,
-                             RankingService rankingService) {
+                             RankingService rankingService,
+                             ScholarshipService scholarshipService,
+                             AppealRecordMapper appealMapper,
+                             GraduateExamApplicationMapper geMapper) {
         this.studentMapper = studentMapper;
         this.yearMapper = yearMapper;
         this.evalMapper = evalMapper;
@@ -76,6 +83,9 @@ public class StudentController {
         this.fileStorageService = fileStorageService;
         this.scoreCalcService = scoreCalcService;
         this.rankingService = rankingService;
+        this.scholarshipService = scholarshipService;
+        this.appealMapper = appealMapper;
+        this.geMapper = geMapper;
     }
 
     // ===== 工具方法 =====
@@ -122,6 +132,9 @@ public class StudentController {
         AcademicYear y = curYear();
         if (y == null) throw new BusinessException("当前没有有效学年");
         EvaluationRecord rec = evaluationService.findOrCreate(s.getId(), y.getId());
+        // 每次加载时重新计算，确保评分规则变更后展示最新分值
+        evaluationService.recalculateAbility(s.getId(), y.getId());
+        rec = evaluationService.findOrCreate(s.getId(), y.getId());
         Long evalId = rec.getId();
 
         Map<String, Object> data = new HashMap<>();
@@ -183,6 +196,7 @@ public class StudentController {
         EvaluationRecord rec = evaluationService.findOrCreate(s.getId(), y.getId());
         item.setId(null);
         item.setEvaluationId(rec.getId());
+        item.setTotal(scoreCalcService.sumSixDimensions(item));
         moralAppraisalMapper.insert(item);
         evaluationService.recalculateBasic(s.getId(), y.getId());
         return R.ok(item);
@@ -195,6 +209,7 @@ public class StudentController {
         assertOwn(existing.getEvaluationId());
         update.setId(id);
         update.setEvaluationId(existing.getEvaluationId());
+        update.setTotal(scoreCalcService.sumSixDimensions(update));
         moralAppraisalMapper.updateById(update);
         Student s = curStudent();
         AcademicYear y = curYear();
@@ -212,7 +227,7 @@ public class StudentController {
         item.setEvaluationId(rec.getId());
         item.setReviewStatus("PENDING");
         item.setCreatedAt(LocalDateTime.now());
-        item.setScore(scoreCalcService.moralRecordScore(Collections.singletonList(item)));
+        item.setScore(scoreCalcService.moralRecordItemDelta(item));
         moralRecordMapper.insert(item);
         evaluationService.recalculateBasic(s.getId(), y.getId());
         return R.ok(item);
@@ -230,7 +245,7 @@ public class StudentController {
         update.setReviewStatus("PENDING");
         update.setReviewRemark(null);
         update.setCreatedAt(existing.getCreatedAt());
-        update.setScore(scoreCalcService.moralRecordScore(Collections.singletonList(update)));
+        update.setScore(scoreCalcService.moralRecordItemDelta(update));
         moralRecordMapper.updateById(update);
         Student s = curStudent();
         AcademicYear y = curYear();
@@ -529,7 +544,8 @@ public class StudentController {
             Application existing = applicationMapper.selectOne(
                     Wrappers.<Application>lambdaQuery()
                             .eq(Application::getStudentId, s.getId())
-                            .eq(Application::getProjectId, p.getId()));
+                            .eq(Application::getProjectId, p.getId())
+                            .ne(Application::getStatus, "WITHDRAWN"));
             row.put("application", existing);
             row.put("evaluation", rec);
             result.add(row);
@@ -559,6 +575,10 @@ public class StudentController {
         String eligibility = rankingService.checkEligibility(s, rec, p);
         if (eligibility != null) throw new BusinessException("不符合申报条件：" + eligibility);
 
+        // 申报限制校验（每类限一项）
+        String limitCheck = scholarshipService.checkApplicationLimit(s.getId(), p.getTypeCode(), y.getId());
+        if (limitCheck != null) throw new BusinessException(limitCheck);
+
         Application app = new Application();
         app.setStudentId(s.getId());
         app.setProjectId(projectId);
@@ -568,6 +588,7 @@ public class StudentController {
         app.setSnapshotAbilityTotal(rec.getAbilityTotal());
         app.setSnapshotAbilityRank(rec.getAbilityRank());
         app.setAutoLevelId(rankingService.previewLevelForStudent(s.getId(), projectId));
+        app.setApplicationCategory(p.getTypeCode());
         app.setStatus("SUBMITTED");
         app.setSubmittedAt(LocalDateTime.now());
         applicationMapper.insert(app);
@@ -577,11 +598,15 @@ public class StudentController {
     @GetMapping("/applications")
     public R<List<Map<String, Object>>> myApplications() {
         Student s = curStudent();
+        AcademicYear y = curYear();
+        List<Map<String, Object>> result = new ArrayList<>();
+
+        // 常规奖学金申请
         List<Application> apps = applicationMapper.selectList(
                 Wrappers.<Application>lambdaQuery()
                         .eq(Application::getStudentId, s.getId())
                         .orderByDesc(Application::getSubmittedAt));
-        return R.ok(apps.stream().map(a -> {
+        result.addAll(apps.stream().map(a -> {
             Map<String, Object> m = new HashMap<>();
             ScholarshipProject p = projectMapper.selectById(a.getProjectId());
             m.put("application", a);
@@ -590,6 +615,30 @@ public class StudentController {
             if (a.getFinalLevelId() != null) m.put("finalLevel", levelMapper.selectById(a.getFinalLevelId()));
             return m;
         }).collect(Collectors.toList()));
+
+        // 考研奖学金申报
+        if (y != null) {
+            GraduateExamApplication ge = scholarshipService.getGraduateExamStatus(s.getId(), y.getId());
+            if (ge != null) {
+                Map<String, Object> m = new HashMap<>();
+                m.put("application", ge);
+                Map<String, String> proj = new HashMap<>();
+                proj.put("projectName", "考研奖学金");
+                proj.put("typeCode", "考研");
+                m.put("project", proj);
+                m.put("isGraduateExam", true);
+                String fl = ge.getFinalLevel();
+                if (fl != null) {
+                    Map<String, String> lv = new HashMap<>();
+                    lv.put("levelName", "FIRST".equals(fl) ? "一等奖 600元" : "SECOND".equals(fl) ? "二等奖 300元" : fl);
+                    m.put("finalLevel", lv);
+                }
+                m.put("autoLevel", null);
+                result.add(m);
+            }
+        }
+
+        return R.ok(result);
     }
 
     @DeleteMapping("/applications/{id}")
@@ -601,7 +650,119 @@ public class StudentController {
             throw new BusinessException("无权操作");
         if (!"SUBMITTED".equals(app.getStatus()))
             throw new BusinessException("已审核或已发布的申请不可撤回");
-        applicationMapper.deleteById(id);
+        app.setStatus("WITHDRAWN");
+        applicationMapper.updateById(app);
         return R.ok();
+    }
+
+    // ===== P1: 能力突出奖学金 =====
+
+    @GetMapping("/ability-scholarship/eligibility")
+    public R<Map<String, Object>> abilityEligibility() {
+        Student s = curStudent();
+        AcademicYear y = curYear();
+        if (y == null) throw new BusinessException("当前没有有效学年");
+        ScholarshipService.AbilityEligibility result = scholarshipService.checkAbilityScholarship(s.getId(), y.getId());
+        Map<String, Object> data = new HashMap<>();
+        data.put("eligibility", result);
+        data.put("student", s);
+        return R.ok(data);
+    }
+
+    // ===== P1: 考研奖学金 =====
+
+    @PostMapping("/graduate-exam")
+    public R<GraduateExamApplication> submitGraduateExam(@RequestBody GraduateExamApplication app) {
+        Student s = curStudent();
+        AcademicYear y = curYear();
+        if (y == null) throw new BusinessException("当前没有有效学年");
+        try {
+            GraduateExamApplication result = scholarshipService.submitGraduateExam(s.getId(), y.getId(), app);
+            return R.ok(result);
+        } catch (RuntimeException e) {
+            throw new BusinessException(e.getMessage());
+        }
+    }
+
+    @GetMapping("/graduate-exam")
+    public R<Map<String, Object>> getGraduateExam() {
+        Student s = curStudent();
+        AcademicYear y = curYear();
+        GraduateExamApplication app = scholarshipService.getGraduateExamStatus(s.getId(),
+                y != null ? y.getId() : null);
+        Map<String, Object> data = new HashMap<>();
+        data.put("application", app);
+        data.put("student", s);
+        return R.ok(data);
+    }
+
+    @DeleteMapping("/graduate-exam/{id}")
+    public R<Void> withdrawGraduateExam(@PathVariable Long id) {
+        GraduateExamApplication app = geMapper.selectById(id);
+        if (app == null) throw new BusinessException("考研申报不存在");
+        Student s = curStudent();
+        if (!Objects.equals(app.getStudentId(), s.getId()))
+            throw new BusinessException("无权操作");
+        if (!"SUBMITTED".equals(app.getStatus()))
+            throw new BusinessException("已审核的申报不可撤回");
+        app.setStatus("WITHDRAWN");
+        geMapper.updateById(app);
+        return R.ok();
+    }
+
+    // ===== P1: 奖金查询 =====
+
+    @GetMapping("/bonus-amount")
+    public R<Map<String, Object>> bonusAmount() {
+        Student s = curStudent();
+        AcademicYear y = curYear();
+        if (y == null) throw new BusinessException("当前没有有效学年");
+        java.math.BigDecimal amount = scholarshipService.calculateActualAmount(s.getId(), y.getId());
+        Map<String, Object> data = new HashMap<>();
+        data.put("amount", amount);
+        data.put("message", amount.compareTo(java.math.BigDecimal.ZERO) > 0
+                ? "应发奖金 " + amount + " 元（同获多项荣誉时按最高额发放）" : "暂未获得奖金");
+        return R.ok(data);
+    }
+
+    // ===== P2: 申诉 =====
+
+    @PostMapping("/appeals")
+    public R<AppealRecord> submitAppeal(@RequestBody Map<String, Object> body) {
+        Student s = curStudent();
+        AcademicYear y = curYear();
+        Long applicationId = body.get("applicationId") != null
+                ? ((Number) body.get("applicationId")).longValue() : null;
+        Long projectId = body.get("projectId") != null
+                ? ((Number) body.get("projectId")).longValue() : null;
+
+        // 检查是否有已存在的未处理申诉
+        AppealRecord exist = appealMapper.selectOne(
+                Wrappers.<AppealRecord>lambdaQuery()
+                        .eq(AppealRecord::getStudentId, s.getId())
+                        .eq(AppealRecord::getApplicationId, applicationId)
+                        .in(AppealRecord::getStatus, Arrays.asList("PENDING", "PROCESSING")));
+        if (exist != null) throw new BusinessException("该申请已有在处理中的申诉，请等待处理结果");
+
+        AppealRecord appeal = new AppealRecord();
+        appeal.setApplicationId(applicationId);
+        appeal.setStudentId(s.getId());
+        appeal.setProjectId(projectId);
+        appeal.setAppealLevel((String) body.get("appealLevel"));
+        appeal.setReason((String) body.get("reason"));
+        appeal.setStatus("PENDING");
+        appeal.setSubmittedAt(LocalDateTime.now());
+        appealMapper.insert(appeal);
+        return R.ok(appeal);
+    }
+
+    @GetMapping("/appeals")
+    public R<List<AppealRecord>> myAppeals() {
+        Student s = curStudent();
+        List<AppealRecord> appeals = appealMapper.selectList(
+                Wrappers.<AppealRecord>lambdaQuery()
+                        .eq(AppealRecord::getStudentId, s.getId())
+                        .orderByDesc(AppealRecord::getSubmittedAt));
+        return R.ok(appeals);
     }
 }

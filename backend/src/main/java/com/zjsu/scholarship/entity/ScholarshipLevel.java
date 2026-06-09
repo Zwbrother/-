@@ -18,4 +18,8 @@ public class ScholarshipLevel {
     private BigDecimal ratio;
     private BigDecimal amount;
     private Integer quota;
+    /** 该等级基本项排名限制 */
+    private BigDecimal rankBasicMaxRatio;
+    /** 该等级能力项排名限制 */
+    private BigDecimal rankAbilityMaxRatio;
 }

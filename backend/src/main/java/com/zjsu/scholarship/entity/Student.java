@@ -27,4 +27,6 @@ public class Student {
     private java.math.BigDecimal peScore;
     /** 劳动教育测评结果 PASS / FAIL / PENDING */
     private String laborEvaluation;
+    /** 是否免测体育 */
+    private Boolean peExempt;
 }

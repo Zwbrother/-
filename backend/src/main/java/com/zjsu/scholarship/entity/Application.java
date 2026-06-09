@@ -37,4 +37,6 @@ public class Application {
     private LocalDateTime submittedAt;
     private LocalDateTime reviewedAt;
     private Long reviewerId;
+    /** COMPREHENSIVE / ABILITY / GRADUATE_EXAM / SPECIAL / NAMED */
+    private String applicationCategory;
 }

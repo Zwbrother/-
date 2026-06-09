@@ -34,4 +34,16 @@ public class ScholarshipProject {
     private String foreignLangRequirement;
     private Boolean noDiscipline;
     private String remark;
+    /** 外语课均分底线 */
+    private BigDecimal foreignLangAvgMin;
+    /** 一等奖外语均分底线 */
+    private BigDecimal foreignLangAvgFirst;
+    /** 是否要求CET4合格 */
+    private Boolean requireCet4Pass;
+    /** 基本项排名最大比例（如30%） */
+    private BigDecimal rankBasicMaxRatio;
+    /** 一等能力项排名最大比例 */
+    private BigDecimal rankAbilityFirst;
+    /** 一等基本项排名最大比例 */
+    private BigDecimal rankBasicFirst;
 }

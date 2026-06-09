@@ -22,6 +22,10 @@ public class ProfessionalSkillItem {
     private String skillCategory;
     /** HIGH / MEDIUM / PRIMARY */
     private String skillLevel;
+    /** 是否通过口语考试（CET4/CET6适用，上浮2分） */
+    private Boolean oralExamPassed;
+    /** 考研结果: TOOK_EXAM / PASSED_INITIAL / PASSED_REEXAM */
+    private String entranceExamResult;
     private String description;
     private LocalDate occurredDate;
     private BigDecimal score;

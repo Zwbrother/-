@@ -22,6 +22,8 @@ public class MoralRecordItem {
     private LocalDate occurredDate;
     private BigDecimal hours;
     private BigDecimal rawValue;
+    /** 荣誉等级：NATIONAL/PROVINCIAL/CITY/SCHOOL/COLLEGE */
+    private String honorLevel;
     private BigDecimal score;
     private String attachmentUrl;
     /** PENDING / APPROVED / REJECTED */

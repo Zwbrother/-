@@ -1,4 +1,4 @@
-import { DashboardOutlined, CalendarOutlined, BookOutlined, TrophyOutlined, ImportOutlined } from '@ant-design/icons'
+import { DashboardOutlined, CalendarOutlined, BookOutlined, TrophyOutlined, ImportOutlined, UserSwitchOutlined } from '@ant-design/icons'
 import BaseLayout from './BaseLayout.jsx'
 
 const items = [
@@ -6,6 +6,7 @@ const items = [
   { key: '/admin/years', icon: <CalendarOutlined />, label: '学年管理' },
   { key: '/admin/projects', icon: <BookOutlined />, label: '奖学金项目' },
   { key: '/admin/ranking', icon: <TrophyOutlined />, label: '综测排名' },
+  { key: '/admin/representatives', icon: <UserSwitchOutlined />, label: '学生代表' },
   { key: '/admin/import', icon: <ImportOutlined />, label: '数据导入' }
 ]
 

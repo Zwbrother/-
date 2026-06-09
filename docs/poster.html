@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>浙江工商大学本科生奖学金评选系统 - 项目海报</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Microsoft YaHei', 'PingFang SC', 'Hiragino Sans GB', 'Noto Sans SC', sans-serif;
+    background: #e8ecf1;
+    display: flex;
+    justify-content: center;
+    padding: 10px;
+  }
+
+  .poster {
+    width: 1080px;
+    height: 1920px;
+    background: #ffffff;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 8px 30px rgba(0,30,80,0.25);
+  }
+
+  .print-hint { max-width: 800px; margin: 10px auto; font-size: 14px; }
+
+  /* ========== HEADER ========== */
+  .header {
+    position: relative;
+    height: 260px;
+    background: linear-gradient(135deg, #001F5B 0%, #003D8C 40%, #004EA8 100%);
+    display: flex;
+    align-items: center;
+    padding: 0 52px;
+    overflow: hidden;
+  }
+  .header::before {
+    content: '';
+    position: absolute;
+    top: -100px; right: -50px;
+    width: 360px; height: 360px;
+    border: 4px solid rgba(255,255,255,0.08);
+    border-radius: 50%;
+  }
+  .header::after {
+    content: '';
+    position: absolute;
+    bottom: -60px; left: 100px;
+    width: 240px; height: 240px;
+    border: 3px solid rgba(255,255,255,0.06);
+    border-radius: 50%;
+  }
+  .header-decor-dots {
+    position: absolute;
+    top: 32px; right: 150px;
+    display: grid; grid-template-columns: repeat(4, 12px);
+    gap: 10px;
+  }
+  .header-decor-dots span {
+    width: 6px; height: 6px;
+    background: rgba(255,255,255,0.2);
+    border-radius: 50%;
+  }
+  .header-left { position: relative; z-index: 1; flex: 1; }
+  .header-badge {
+    display: flex; align-items: center; gap: 14px;
+    margin-bottom: 10px;
+  }
+  .header-logo {
+    width: 58px; height: 58px;
+    background: #fff;
+    border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  .header-logo img { width: 48px; height: 48px; object-fit: contain; }
+  .header-univ {
+    font-size: 26px; font-weight: 400; color: rgba(255,255,255,0.9);
+    letter-spacing: 4px;
+  }
+  .header-title {
+    font-size: 46px; font-weight: 900; color: #fff;
+    line-height: 1.15; letter-spacing: 2px;
+  }
+  .header-subtitle {
+    font-size: 20px; font-weight: 300; color: rgba(255,255,255,0.85);
+    margin-top: 8px; letter-spacing: 6px;
+  }
+  .header-right {
+    position: relative; z-index: 1;
+    width: 180px; height: 135px;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  /* ========== SECTION TITLES ========== */
+  .section-title {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 30px; font-weight: 700; color: #003D8C;
+    margin-bottom: 16px;
+  }
+  .section-title::before {
+    content: '';
+    width: 5px; height: 24px;
+    background: linear-gradient(180deg, #003D8C, #1A73E8);
+    border-radius: 3px;
+  }
+  .section-title-sm {
+    font-size: 22px; font-weight: 700; color: #003D8C;
+    margin-bottom: 12px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .section-title-sm::before {
+    content: '';
+    width: 4px; height: 18px;
+    background: #1A73E8;
+    border-radius: 2px;
+  }
+
+  /* ========== ROW 1: VALUE + NUMBERS ========== */
+  .row-value-numbers {
+    display: flex; gap: 16px; padding: 24px 36px;
+    background: #fff;
+  }
+  .value-panel {
+    flex: 1.6;
+    background: #F5F7FA;
+    border-radius: 12px;
+    padding: 20px 24px;
+    position: relative;
+    overflow: hidden;
+  }
+  .value-panel::after {
+    content: '';
+    position: absolute;
+    bottom: -30px; right: -30px;
+    width: 100px; height: 100px;
+    background: rgba(0,61,140,0.04);
+    border-radius: 50%;
+  }
+  .pain-point-list { position: relative; z-index: 1; }
+  .pain-point {
+    display: flex; align-items: flex-start; gap: 10px;
+    margin-bottom: 16px;
+  }
+  .pain-icon {
+    flex-shrink: 0;
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .pain-icon.bad { background: #FDE8E8; color: #C62828; }
+  .pain-icon.good { background: #E3F2FD; color: #003D8C; }
+  .pain-text h4 { font-size: 16px; font-weight: 600; color: #333; margin-bottom: 2px; }
+  .pain-text p { font-size: 14px; color: #666; line-height: 1.5; }
+
+  .numbers-panel {
+    flex: 1;
+    display: grid; grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    gap: 10px;
+  }
+  .num-card {
+    background: linear-gradient(135deg, #003D8C, #004EA8);
+    border-radius: 10px;
+    padding: 16px 12px;
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center;
+    color: #fff;
+    position: relative;
+    overflow: hidden;
+  }
+  .num-card::before {
+    content: '';
+    position: absolute;
+    top: -14px; right: -14px;
+    width: 48px; height: 48px;
+    border: 2px solid rgba(255,255,255,0.1);
+    border-radius: 50%;
+  }
+  .num-card .num-big {
+    font-size: 48px; font-weight: 900; line-height: 1;
+    position: relative; z-index: 1;
+  }
+  .num-card .num-label {
+    font-size: 15px; font-weight: 400;
+    opacity: 0.9; margin-top: 4px;
+    position: relative; z-index: 1;
+    text-align: center;
+  }
+
+  /* ========== ROW 2: PROCESS FLOW ========== */
+  .row-process {
+    padding: 24px 36px;
+    background: linear-gradient(180deg, #F5F7FA 0%, #fff 100%);
+  }
+  .process-flow {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    position: relative;
+  }
+  .process-flow::before {
+    content: '';
+    position: absolute;
+    top: 36px; left: 40px; right: 40px;
+    height: 2px;
+    background: linear-gradient(90deg, #003D8C, #1A73E8, #4FC3F7);
+    border-radius: 1px;
+    z-index: 0;
+  }
+  .process-step {
+    position: relative; z-index: 1;
+    display: flex; flex-direction: column; align-items: center;
+    width: 130px;
+  }
+  .process-circle {
+    width: 64px; height: 64px;
+    background: #fff;
+    border: 3px solid #1A73E8;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 8px;
+    box-shadow: 0 3px 12px rgba(0,61,140,0.1);
+    font-weight: 900;
+  }
+  .process-circle .step-num {
+    font-size: 26px; font-weight: 900; color: #003D8C;
+  }
+  .process-step:nth-child(1) .process-circle { background: linear-gradient(135deg, #003D8C, #1A73E8); }
+  .process-step:nth-child(1) .process-circle .step-num { color: #fff; }
+  .process-step:nth-child(6) .process-circle { background: linear-gradient(135deg, #003D8C, #1A73E8); }
+  .process-step:nth-child(6) .process-circle .step-num { color: #fff; }
+  .process-label {
+    font-size: 16px; font-weight: 600; color: #333; text-align: center;
+  }
+  .process-desc {
+    font-size: 13px; color: #999; text-align: center; margin-top: 2px;
+  }
+  .process-icon { margin-bottom: 4px; }
+
+  /* ========== ROW 3: EVALUATION MODEL ========== */
+  .row-model {
+    padding: 30px 36px; background: #fff;
+  }
+  .eval-model-container {
+    display: flex; gap: 16px; align-items: stretch;
+  }
+  .eval-track {
+    flex: 1;
+    background: #F5F7FA;
+    border-radius: 10px;
+    padding: 20px;
+    border-top: 4px solid #003D8C;
+  }
+  .eval-track.ability { border-top-color: #1A73E8; }
+  .eval-track-title {
+    font-size: 24px; font-weight: 700; color: #003D8C;
+    margin-bottom: 14px;
+    text-align: center;
+  }
+  .eval-track.ability .eval-track-title { color: #1A73E8; }
+  .eval-formula {
+    background: #fff;
+    border-radius: 6px;
+    padding: 14px 12px;
+    font-size: 15px;
+    color: #555;
+    line-height: 1.8;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    margin-bottom: 12px;
+  }
+  .eval-formula strong { color: #003D8C; }
+  .eval-modules {
+    display: flex; flex-wrap: wrap; gap: 6px;
+  }
+  .eval-module-tag {
+    background: #E3F2FD;
+    color: #003D8C;
+    padding: 5px 12px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+  }
+  .eval-module-tag.alt { background: #E8F0FE; color: #1A73E8; }
+  .eval-arrow {
+    display: flex; align-items: center;
+    font-size: 28px; color: #1A73E8;
+    font-weight: 900;
+  }
+  .eval-result {
+    margin-top: 16px;
+    background: linear-gradient(135deg, #E3F2FD, #BBDEFB);
+    border-radius: 8px;
+    padding: 14px;
+    text-align: center;
+    font-size: 17px;
+    font-weight: 700;
+    color: #003D8C;
+  }
+
+  /* ========== ROW 4: ROLES + TECH HIGHLIGHTS ========== */
+  .row-roles-tech {
+    display: flex; gap: 16px;
+    padding: 24px 36px;
+    background: #F5F7FA;
+  }
+  .roles-panel {
+    flex: 1.3;
+    background: #fff;
+    border-radius: 10px;
+    padding: 20px;
+    box-shadow: 0 3px 12px rgba(0,0,0,0.05);
+  }
+  .role-cards {
+    display: flex; gap: 10px;
+  }
+  .role-card {
+    flex: 1;
+    background: #F8FAFD;
+    border-radius: 8px;
+    padding: 16px 10px;
+    text-align: center;
+    border: 1px solid #E8ECF1;
+  }
+  .role-icon {
+    width: 44px; height: 44px;
+    margin: 0 auto 8px;
+    background: linear-gradient(135deg, #E3F2FD, #BBDEFB);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .role-name {
+    font-size: 18px; font-weight: 700; color: #003D8C;
+    margin-bottom: 8px;
+  }
+  .role-tasks {
+    list-style: none; text-align: left;
+    font-size: 13px; color: #666;
+  }
+  .role-tasks li {
+    padding: 3px 0;
+    border-bottom: 1px dotted #E0E0E0;
+  }
+  .role-tasks li::before {
+    content: '▸ ';
+    color: #1A73E8;
+  }
+
+  .tech-panel {
+    flex: 1;
+    background: #fff;
+    border-radius: 10px;
+    padding: 20px;
+    box-shadow: 0 3px 12px rgba(0,0,0,0.05);
+  }
+  .tech-highlight {
+    display: flex; align-items: flex-start; gap: 12px;
+    margin-bottom: 14px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #eee;
+  }
+  .tech-highlight:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+  .tech-icon-box {
+    flex-shrink: 0;
+    width: 38px; height: 38px;
+    background: linear-gradient(135deg, #003D8C, #1A73E8);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff;
+  }
+  .tech-highlight h4 {
+    font-size: 17px; font-weight: 600; color: #333;
+    margin-bottom: 3px;
+  }
+  .tech-highlight p {
+    font-size: 14px; color: #888; line-height: 1.5;
+  }
+
+  /* ========== FOOTER ========== */
+  .footer {
+    height: 80px;
+    background: linear-gradient(135deg, #001F5B, #003D8C);
+    display: flex; align-items: center;
+    justify-content: space-between;
+    padding: 0 36px;
+    color: #fff;
+    font-size: 15px;
+    position: relative;
+    overflow: hidden;
+  }
+  .footer::before {
+    content: '';
+    position: absolute;
+    top: -50px; left: -30px;
+    width: 160px; height: 160px;
+    border: 2px solid rgba(255,255,255,0.06);
+    border-radius: 50%;
+  }
+  .footer-left { position: relative; z-index: 1; }
+  .footer-right {
+    position: relative; z-index: 1;
+    text-align: right; opacity: 0.8;
+  }
+
+  /* ========== DECORATIVE ELEMENTS ========== */
+  .decor-divider {
+    width: 60px; height: 2px;
+    background: linear-gradient(90deg, #003D8C, transparent);
+    margin: 10px 0;
+  }
+</style>
+</head>
+<body>
+
+<div style="text-align:center;padding:10px 0;color:#666;font-size:14px;background:#fff8e1;border:1px solid #ffe082;border-radius:4px;margin-bottom:10px;" class="print-hint">
+  💡 <strong>展示提示：</strong>1080×1920 竖屏比例 (9:16)，适合大屏幕展示 / 手机浏览 / 导出图片
+</div>
+
+<div class="poster">
+
+  <!-- ============================================= -->
+  <!-- ① HEADER - 标题定位                           -->
+  <!-- ============================================= -->
+  <div class="header">
+    <div class="header-decor-dots">
+      <span></span><span></span><span></span><span></span>
+      <span></span><span></span><span></span><span></span>
+      <span></span><span></span><span></span><span></span>
+    </div>
+    <div class="header-left">
+      <div class="header-badge">
+        <div class="header-logo">
+          <img src="../R.png" alt="浙江工商大学校徽" />
+        </div>
+        <div>
+          <div style="font-size:26px;font-weight:500;color:#fff;letter-spacing:4px;">浙江工商大学</div>
+          <div style="font-size:16px;color:rgba(255,255,255,0.7);">ZHEJIANG GONGSHANG UNIVERSITY</div>
+        </div>
+      </div>
+      <div class="header-title">本科生奖学金评选系统</div>
+      <div class="header-subtitle">智能化综合评价 · 全流程闭环管理 · 公开透明可信</div>
+      <div class="decor-divider" style="background:linear-gradient(90deg, rgba(255,255,255,0.5), transparent);"></div>
+      <div style="display:flex;gap:10px;margin-top:8px;">
+        <span style="background:rgba(255,255,255,0.15);color:#fff;padding:6px 14px;border-radius:6px;font-size:14px;">🎯 本科生</span>
+        <span style="background:rgba(255,255,255,0.15);color:#fff;padding:6px 14px;border-radius:6px;font-size:14px;">👨‍🏫 辅导员</span>
+        <span style="background:rgba(255,255,255,0.15);color:#fff;padding:6px 14px;border-radius:6px;font-size:14px;">⚙️ 管理员</span>
+      </div>
+    </div>
+    <div class="header-right">
+      <!-- Abstract illustration: shield with checkmark representing fair evaluation -->
+      <svg viewBox="0 0 200 180" xmlns="http://www.w3.org/2000/svg" style="width:180px;height:135px;">
+        <defs>
+          <linearGradient id="shieldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:rgba(255,255,255,0.25)"/>
+            <stop offset="100%" style="stop-color:rgba(255,255,255,0.05)"/>
+          </linearGradient>
+        </defs>
+        <!-- Shield -->
+        <path d="M100 10 L180 40 L180 110 Q180 155 100 175 Q20 155 20 110 L20 40 Z"
+              fill="url(#shieldGrad)" stroke="rgba(255,255,255,0.4)" stroke-width="3"/>
+        <!-- Checkmark -->
+        <polyline points="55,90 85,120 150,60"
+                  fill="none" stroke="#4FC3F7" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+        <!-- Stars -->
+        <circle cx="40" cy="55" r="3" fill="rgba(255,255,255,0.3)"/>
+        <circle cx="160" cy="70" r="2.5" fill="rgba(255,255,255,0.25)"/>
+        <circle cx="130" cy="40" r="2" fill="rgba(255,255,255,0.2)"/>
+      </svg>
+    </div>
+  </div>
+
+  <!-- ============================================= -->
+  <!-- ② 价值主张 + ⑧ 关键数字                          -->
+  <!-- ============================================= -->
+  <div class="row-value-numbers">
+    <!-- 价值主张 -->
+    <div class="value-panel">
+      <div class="section-title-sm">💡 价值主张 — 解决三大核心痛点</div>
+      <div class="pain-point-list">
+        <!-- Pain 1 -->
+        <div class="pain-point">
+          <div class="pain-icon bad">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </div>
+          <div style="flex:1;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+              <span style="font-size:16px;color:#C62828;font-weight:600;">人工核算繁琐易错</span>
+              <span style="font-size:14px;color:#999;">→</span>
+              <span style="font-size:15px;color:#2E7D32;font-weight:600;">智能计分引擎自动核算</span>
+            </div>
+            <p style="font-size:14px;color:#777;">几十个评选指标、数百名学生绩点手工计算，工作量大且易出错</p>
+          </div>
+        </div>
+        <!-- Pain 2 -->
+        <div class="pain-point">
+          <div class="pain-icon bad">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          </div>
+          <div style="flex:1;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+              <span style="font-size:16px;color:#C62828;font-weight:600;">评选规则变化频繁</span>
+              <span style="font-size:14px;color:#999;">→</span>
+              <span style="font-size:15px;color:#2E7D32;font-weight:600;">规则可配置、动态适配</span>
+            </div>
+            <p style="font-size:14px;color:#777;">每年评选办法调整，硬编码改造成本高，系统参数化灵活配置</p>
+          </div>
+        </div>
+        <!-- Pain 3 -->
+        <div class="pain-point">
+          <div class="pain-icon bad">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+          </div>
+          <div style="flex:1;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+              <span style="font-size:16px;color:#C62828;font-weight:600;">过程不透明、易争议</span>
+              <span style="font-size:14px;color:#999;">→</span>
+              <span style="font-size:15px;color:#2E7D32;font-weight:600;">全链路可追溯 + 在线申诉</span>
+            </div>
+            <p style="font-size:14px;color:#777;">评分黑箱导致学生对结果不信任，系统实现评分透明化与申诉闭环</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 关键数字 -->
+    <div class="numbers-panel">
+      <div class="num-card">
+        <div class="num-big">8<span style="font-size:22px;">类</span></div>
+        <div class="num-label">奖学金评选类型</div>
+      </div>
+      <div class="num-card" style="background:linear-gradient(135deg, #1A73E8, #4FC3F7);">
+        <div class="num-big">6<span style="font-size:22px;">维</span></div>
+        <div class="num-label">综合素质评价维度</div>
+      </div>
+      <div class="num-card" style="background:linear-gradient(135deg, #004EA8, #1A73E8);">
+        <div class="num-big">3<span style="font-size:22px;">角</span></div>
+        <div class="num-label">角色协同工作</div>
+      </div>
+      <div class="num-card" style="background:linear-gradient(135deg, #002B6B, #003D8C);">
+        <div class="num-big">100<span style="font-size:22px;">%</span></div>
+        <div class="num-label">评分可追溯</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================= -->
+  <!-- ③ 业务流程                                     -->
+  <!-- ============================================= -->
+  <div class="row-process">
+    <div class="section-title">🔄 业务流程 — 一站式闭环管理</div>
+    <div class="process-flow">
+      <div class="process-step">
+        <div class="process-circle">
+          <div class="step-num">1</div>
+        </div>
+        <div class="process-icon">
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#1A73E8" stroke-width="1.8"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        </div>
+        <div class="process-label">学生自评申报</div>
+        <div class="process-desc">填写品德/能力材料</div>
+      </div>
+      <div class="process-step">
+        <div class="process-circle">
+          <div class="step-num">2</div>
+        </div>
+        <div class="process-icon">
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#1A73E8" stroke-width="1.8"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+        </div>
+        <div class="process-label">辅导员审核评分</div>
+        <div class="process-desc">审核材料 + 记实分</div>
+      </div>
+      <div class="process-step">
+        <div class="process-circle">
+          <div class="step-num">3</div>
+        </div>
+        <div class="process-icon">
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#1A73E8" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        </div>
+        <div class="process-label">系统自动评分</div>
+        <div class="process-desc">双轨制引擎核算</div>
+      </div>
+      <div class="process-step">
+        <div class="process-circle">
+          <div class="step-num">4</div>
+        </div>
+        <div class="process-icon">
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#1A73E8" stroke-width="1.8"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/></svg>
+        </div>
+        <div class="process-label">等级自动推荐</div>
+        <div class="process-desc">排名匹配 + 名额分配</div>
+      </div>
+      <div class="process-step">
+        <div class="process-circle">
+          <div class="step-num">5</div>
+        </div>
+        <div class="process-icon">
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#1A73E8" stroke-width="1.8"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.6" y1="11" x2="15.4" y2="6"/><line x1="15.4" y1="18" x2="8.6" y2="13"/></svg>
+        </div>
+        <div class="process-label">公示与申诉</div>
+        <div class="process-desc">结果发布 + 在线申诉</div>
+      </div>
+      <div class="process-step">
+        <div class="process-circle">
+          <div class="step-num">✓</div>
+        </div>
+        <div class="process-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        <div class="process-label">评选完成</div>
+        <div class="process-desc">归档导出报表</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================= -->
+  <!-- ④ 评价模型 — 双轨制评分体系                      -->
+  <!-- ============================================= -->
+  <div class="row-model">
+    <div class="section-title">📊 评价模型 — 2025版双轨制评分体系</div>
+    <div class="eval-model-container">
+      <!-- 基本项轨道 -->
+      <div class="eval-track">
+        <div class="eval-track-title">
+          <span style="display:inline-block;width:44px;height:44px;background:#003D8C;color:#fff;border-radius:50%;text-align:center;line-height:44px;font-size:22px;margin-right:8px;">基</span>
+          基本项 <span style="font-size:16px;font-weight:400;color:#999;">权重 70%</span>
+        </div>
+        <div class="eval-formula">
+          <div style="margin-bottom:10px;">
+            <strong>基本项总分</strong> = 品德总分 × 30% + 专业素质 × 70%
+          </div>
+          <div style="background:#F5F7FA;border-radius:6px;padding:10px;margin-bottom:8px;">
+            <div style="font-size:14px;color:#666;margin-bottom:4px;">🧠 <strong>品德总分</strong></div>
+            <div>评议分(自评5%+代表60%+辅导员35%) × 70% + 记实分(基准60±奖惩) × 30%</div>
+          </div>
+          <div style="background:#F5F7FA;border-radius:6px;padding:10px;">
+            <div style="font-size:14px;color:#666;margin-bottom:4px;">📚 <strong>专业素质</strong></div>
+            <div>全部课程加权平均分 = Σ(成绩×学分) / Σ学分</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <span class="eval-module-tag">政治素养</span>
+          <span class="eval-module-tag">法治意识</span>
+          <span class="eval-module-tag">心理品质</span>
+          <span class="eval-module-tag">诚实守信</span>
+          <span class="eval-module-tag">团队协作</span>
+          <span class="eval-module-tag">社会责任</span>
+        </div>
+      </div>
+
+      <!-- 箭头 -->
+      <div class="eval-arrow">
+        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#1A73E8" stroke-width="3"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="14 5 19 12 14 19"/></svg>
+      </div>
+
+      <!-- 能力项轨道 -->
+      <div class="eval-track ability">
+        <div class="eval-track-title">
+          <span style="display:inline-block;width:44px;height:44px;background:#1A73E8;color:#fff;border-radius:50%;text-align:center;line-height:44px;font-size:22px;margin-right:8px;">能</span>
+          综合能力 <span style="font-size:16px;font-weight:400;color:#999;">权重 30%</span>
+        </div>
+        <div class="eval-formula">
+          <div style="margin-bottom:10px;">
+            <strong>综合能力总分</strong> = 75 + 五模块加权
+          </div>
+          <div style="font-size:15px;color:#555;line-height:2;">
+            <div>🔬 研究创新 <strong>× 30%</strong> — 竞赛/论文/专利/项目</div>
+            <div>💻 专业技能 <strong>× 25%</strong> — CET4-6/计算机/资格证书</div>
+            <div>🏛️ 组织工作 <strong>× 15%</strong> — 任高职取最高分</div>
+            <div>🎨 体育美育 <strong>× 15%</strong> — 竞赛获奖</div>
+            <div>🧹 劳动教育 <strong>× 15%</strong> — 社会实践</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <span class="eval-module-tag alt">竞赛分级</span>
+          <span class="eval-module-tag alt">合作系数</span>
+          <span class="eval-module-tag alt">论文期刊</span>
+          <span class="eval-module-tag alt">专利类型</span>
+          <span class="eval-module-tag alt">任期系数</span>
+        </div>
+      </div>
+    </div>
+    <!-- 交叉匹配结果 -->
+    <div class="eval-result">
+      🔗 双轨交叉匹配 = 基本项排名 ∩ 能力项排名 → 等级名额自动推荐 → 人工审核最终确认
+    </div>
+  </div>
+
+  <!-- ============================================= -->
+  <!-- ⑤ 角色功能 + ⑥ 技术亮点                         -->
+  <!-- ============================================= -->
+  <div class="row-roles-tech">
+    <!-- 角色功能 -->
+    <div class="roles-panel">
+      <div class="section-title-sm">👥 角色功能 — 三类用户各司其职</div>
+      <div class="role-cards">
+        <!-- 学生 -->
+        <div class="role-card">
+          <div class="role-icon">
+            <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#003D8C" stroke-width="1.8"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          </div>
+          <div class="role-name">🎓 学生端</div>
+          <ul class="role-tasks">
+            <li>基本项自评填报</li>
+            <li>综合能力材料提交</li>
+            <li>实时查看评分进度</li>
+            <li>奖学金一键申报</li>
+            <li>考研奖学金申请</li>
+            <li>在线申诉与进度追踪</li>
+          </ul>
+        </div>
+        <!-- 辅导员 -->
+        <div class="role-card">
+          <div class="role-icon">
+            <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#003D8C" stroke-width="1.8"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+          </div>
+          <div class="role-name">👨‍🏫 辅导员端</div>
+          <ul class="role-tasks">
+            <li>品德评议评分(6维度)</li>
+            <li>品德记实加减分审核</li>
+            <li>学生申报材料集中审批</li>
+            <li>奖学金等级人工调整</li>
+            <li>申诉处理与回复</li>
+          </ul>
+        </div>
+        <!-- 管理员 -->
+        <div class="role-card">
+          <div class="role-icon">
+            <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#003D8C" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+          </div>
+          <div class="role-name">⚙️ 管理员端</div>
+          <ul class="role-tasks">
+            <li>学年与评选项目管理</li>
+            <li>奖学金等级/名额配置</li>
+            <li>学生代表设置</li>
+            <li>Excel一键批量导入</li>
+            <li>全校排名与数据看板</li>
+            <li>结果公示发布</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- 技术亮点 -->
+    <div class="tech-panel">
+      <div class="section-title-sm">⚡ 技术亮点 — 差异化竞争优势</div>
+      <div class="tech-highlight">
+        <div class="tech-icon-box">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        </div>
+        <div>
+          <h4>规则配置化引擎</h4>
+          <p>评选规则参数化：权重、系数、等级线均可后台动态调整，无需修改代码即可适配每年新规</p>
+        </div>
+      </div>
+      <div class="tech-highlight">
+        <div class="tech-icon-box" style="background:linear-gradient(135deg,#1A73E8,#4FC3F7);">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        </div>
+        <div>
+          <h4>Excel 一键导入导出</h4>
+          <p>支持学生信息、课程成绩、获奖记录等批量导入，评选结果一键导出标准化报表</p>
+        </div>
+      </div>
+      <div class="tech-highlight">
+        <div class="tech-icon-box" style="background:linear-gradient(135deg,#002B6B,#003D8C);">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+        </div>
+        <div>
+          <h4>申诉全链路追溯</h4>
+          <p>每项评分来源可查、审核节点留痕、申诉流程闭环，确保评选过程公开透明可审计</p>
+        </div>
+      </div>
+      <div class="tech-highlight">
+        <div class="tech-icon-box" style="background:linear-gradient(135deg,#004EA8,#1A73E8);">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><line x1="12" y1="2" x2="12" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+        </div>
+        <div>
+          <h4>双轨制实时排名</h4>
+          <p>基本项与能力项独立排名、交叉匹配，合作系数与任期系数自动折算，秒级输出综合排名</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================= -->
+  <!-- ⑧ FOOTER                                     -->
+  <!-- ============================================= -->
+  <div class="footer">
+    <div class="footer-left">
+      <div style="font-size:18px;font-weight:700;margin-bottom:4px;">浙江工商大学 · 本科生奖学金评选系统</div>
+      <div style="opacity:0.7;">2025版学生素质评价办法 · 2025版奖学金实施办法</div>
+    </div>
+    <div class="footer-right">
+      <div style="margin-bottom:4px;">Zhejiang Gongshang University</div>
+      <div style="opacity:0.7;">Scholarship Evaluation System © 2026</div>
+    </div>
+  </div>
+
+</div><!-- .poster -->
+
+</body>
+</html>

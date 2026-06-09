@@ -1,4 +1,4 @@
-import { HomeOutlined, FormOutlined, ThunderboltOutlined, GiftOutlined, FileTextOutlined } from '@ant-design/icons'
+import { HomeOutlined, FormOutlined, ThunderboltOutlined, GiftOutlined, FileTextOutlined, BookOutlined, AlertOutlined } from '@ant-design/icons'
 import BaseLayout from './BaseLayout.jsx'
 
 const items = [
@@ -6,7 +6,9 @@ const items = [
   { key: '/student/basic-eval', icon: <FormOutlined />, label: '基本项测评' },
   { key: '/student/ability-eval', icon: <ThunderboltOutlined />, label: '综合能力测评' },
   { key: '/student/scholarships', icon: <GiftOutlined />, label: '奖学金申报' },
-  { key: '/student/applications', icon: <FileTextOutlined />, label: '我的申请' }
+  { key: '/student/graduate-exam', icon: <BookOutlined />, label: '考研奖学金' },
+  { key: '/student/applications', icon: <FileTextOutlined />, label: '我的申请' },
+  { key: '/student/appeal', icon: <AlertOutlined />, label: '申诉' }
 ]
 
 export default function StudentLayout() {

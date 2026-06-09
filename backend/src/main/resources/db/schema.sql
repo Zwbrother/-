@@ -37,7 +37,9 @@ CREATE TABLE IF NOT EXISTS students (
   cet4_score INT,
   cet6_score INT,
   pe_score DECIMAL(5,1),
-  labor_evaluation VARCHAR(20) DEFAULT 'PENDING'
+  labor_evaluation VARCHAR(20) DEFAULT 'PENDING',
+  -- 新增：体育免测
+  pe_exempt BOOLEAN DEFAULT FALSE
 );
 
 -- ============= 学年 =============
@@ -118,6 +120,7 @@ CREATE TABLE IF NOT EXISTS moral_record_items (
   occurred_date DATE,
   hours DECIMAL(5,1),
   raw_value DECIMAL(7,2),
+  honor_level VARCHAR(20),
   score DECIMAL(7,2) DEFAULT 0,
   attachment_url VARCHAR(255),
   review_status VARCHAR(20) DEFAULT 'PENDING',
@@ -159,6 +162,8 @@ CREATE TABLE IF NOT EXISTS professional_skill_items (
   name VARCHAR(200),
   skill_category VARCHAR(50),
   skill_level VARCHAR(30),
+  oral_exam_passed BOOLEAN DEFAULT FALSE,
+  entrance_exam_result VARCHAR(20),
   description VARCHAR(255),
   occurred_date DATE,
   score DECIMAL(7,2) DEFAULT 0,
@@ -245,7 +250,15 @@ CREATE TABLE IF NOT EXISTS scholarship_projects (
   need_labor_pass BOOLEAN DEFAULT TRUE,
   foreign_lang_requirement VARCHAR(200),
   no_discipline BOOLEAN DEFAULT TRUE,
-  remark VARCHAR(500)
+  remark VARCHAR(500),
+  -- 新增：结构化外语条件
+  foreign_lang_avg_min DECIMAL(5,1),
+  foreign_lang_avg_first DECIMAL(5,1),
+  require_cet4_pass BOOLEAN DEFAULT FALSE,
+  -- 新增：排名过滤
+  rank_basic_max_ratio DECIMAL(5,2),
+  rank_ability_first DECIMAL(5,2),
+  rank_basic_first DECIMAL(5,2)
 );
 
 CREATE TABLE IF NOT EXISTS scholarship_levels (
@@ -255,7 +268,10 @@ CREATE TABLE IF NOT EXISTS scholarship_levels (
   level_order INT NOT NULL,
   ratio DECIMAL(5,2),
   amount DECIMAL(10,2),
-  quota INT
+  quota INT,
+  -- 新增：双轨制排名条件
+  rank_basic_max_ratio DECIMAL(5,2),
+  rank_ability_max_ratio DECIMAL(5,2)
 );
 
 CREATE TABLE IF NOT EXISTS scholarship_criteria (
@@ -295,6 +311,8 @@ CREATE TABLE IF NOT EXISTS applications (
   submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   reviewed_at TIMESTAMP NULL,
   reviewer_id BIGINT,
+  -- 新增：申报分类限制
+  application_category VARCHAR(30),
   CONSTRAINT uk_app_ug UNIQUE (student_id, project_id)
 );
 
@@ -306,3 +324,88 @@ CREATE TABLE IF NOT EXISTS audit_logs (
   detail VARCHAR(500),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- ============= 学生代表 =============
+CREATE TABLE IF NOT EXISTS student_representatives (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  academic_year_id BIGINT NOT NULL,
+  student_id BIGINT NOT NULL,
+  class_name VARCHAR(50),
+  elected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE (academic_year_id, student_id)
+);
+
+-- ============= 申诉记录 =============
+CREATE TABLE IF NOT EXISTS appeal_records (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  application_id BIGINT,
+  student_id BIGINT NOT NULL,
+  project_id BIGINT,
+  appeal_level VARCHAR(20),
+  reason VARCHAR(1000),
+  status VARCHAR(20) DEFAULT 'PENDING',
+  response VARCHAR(1000),
+  submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  responded_at TIMESTAMP
+);
+
+-- ============= 考研奖学金申报 =============
+CREATE TABLE IF NOT EXISTS graduate_exam_applications (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  student_id BIGINT NOT NULL,
+  academic_year_id BIGINT NOT NULL,
+  exam_type VARCHAR(20),
+  has_interview_qualification BOOLEAN DEFAULT FALSE,
+  is_admitted BOOLEAN DEFAULT FALSE,
+  school_name VARCHAR(200),
+  major_name VARCHAR(200),
+  status VARCHAR(20) DEFAULT 'SUBMITTED',
+  final_level VARCHAR(20),
+  reject_reason VARCHAR(500),
+  attachment_url VARCHAR(255),
+  submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE (student_id, academic_year_id)
+);
+
+-- ============= 处分记录（追踪处分状态） =============
+CREATE TABLE IF NOT EXISTS discipline_records (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  student_id BIGINT NOT NULL,
+  discipline_type VARCHAR(30),
+  description VARCHAR(500),
+  occurred_date DATE,
+  is_resolved BOOLEAN DEFAULT FALSE,
+  resolved_at TIMESTAMP NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ============= 学院级配置 =============
+CREATE TABLE IF NOT EXISTS college_configs (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  college_name VARCHAR(80) NOT NULL,
+  config_key VARCHAR(100) NOT NULL,
+  config_value VARCHAR(500),
+  description VARCHAR(255),
+  UNIQUE (college_name, config_key)
+);
+
+-- ============================================================
+--  数据库迁移（对已存在数据库增量添加字段）
+-- ============================================================
+ALTER TABLE scholarship_projects ADD COLUMN IF NOT EXISTS foreign_lang_avg_min DECIMAL(5,1);
+ALTER TABLE scholarship_projects ADD COLUMN IF NOT EXISTS foreign_lang_avg_first DECIMAL(5,1);
+ALTER TABLE scholarship_projects ADD COLUMN IF NOT EXISTS require_cet4_pass BOOLEAN DEFAULT FALSE;
+ALTER TABLE scholarship_projects ADD COLUMN IF NOT EXISTS rank_basic_max_ratio DECIMAL(5,2);
+ALTER TABLE scholarship_projects ADD COLUMN IF NOT EXISTS rank_ability_first DECIMAL(5,2);
+ALTER TABLE scholarship_projects ADD COLUMN IF NOT EXISTS rank_basic_first DECIMAL(5,2);
+ALTER TABLE scholarship_levels ADD COLUMN IF NOT EXISTS rank_basic_max_ratio DECIMAL(5,2);
+ALTER TABLE scholarship_levels ADD COLUMN IF NOT EXISTS rank_ability_max_ratio DECIMAL(5,2);
+ALTER TABLE students ADD COLUMN IF NOT EXISTS pe_exempt BOOLEAN DEFAULT FALSE;
+ALTER TABLE applications ADD COLUMN IF NOT EXISTS application_category VARCHAR(30);
+ALTER TABLE moral_record_items ADD COLUMN IF NOT EXISTS honor_level VARCHAR(20);
+ALTER TABLE professional_skill_items ADD COLUMN IF NOT EXISTS oral_exam_passed BOOLEAN DEFAULT FALSE;
+ALTER TABLE professional_skill_items ADD COLUMN IF NOT EXISTS entrance_exam_result VARCHAR(20);
+ALTER TABLE graduate_exam_applications ADD COLUMN IF NOT EXISTS attachment_url VARCHAR(255);
+ALTER TABLE graduate_exam_applications ADD COLUMN IF NOT EXISTS reject_reason VARCHAR(500);
+ALTER TABLE graduate_exam_applications ADD COLUMN IF NOT EXISTS reviewed_at TIMESTAMP NULL;
+ALTER TABLE graduate_exam_applications ADD COLUMN IF NOT EXISTS reviewer_id BIGINT;

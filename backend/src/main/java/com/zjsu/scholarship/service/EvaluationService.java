@@ -9,9 +9,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * 本科生综合评价服务（双轨制）
@@ -33,6 +32,7 @@ public class EvaluationService {
     private final OrganizationWorkItemMapper owMapper;
     private final SportsAestheticsItemMapper saMapper;
     private final LaborPracticeItemMapper lpMapper;
+    private final DisciplineRecordMapper disciplineMapper;
     private final ScoreCalcService calc;
 
     public EvaluationService(EvaluationRecordMapper evalMapper, StudentMapper studentMapper,
@@ -44,6 +44,7 @@ public class EvaluationService {
                              OrganizationWorkItemMapper owMapper,
                              SportsAestheticsItemMapper saMapper,
                              LaborPracticeItemMapper lpMapper,
+                             DisciplineRecordMapper disciplineMapper,
                              ScoreCalcService calc) {
         this.evalMapper = evalMapper;
         this.studentMapper = studentMapper;
@@ -55,6 +56,7 @@ public class EvaluationService {
         this.owMapper = owMapper;
         this.saMapper = saMapper;
         this.lpMapper = lpMapper;
+        this.disciplineMapper = disciplineMapper;
         this.calc = calc;
     }
 
@@ -140,7 +142,7 @@ public class EvaluationService {
 
         BigDecimal ri = sumResearchInnovation(rec.getId());
         BigDecimal ps = sumProfessionalSkill(rec.getId());
-        BigDecimal ow = sumOrganizationWork(rec.getId());
+        BigDecimal ow = maxOrganizationWork(rec.getId());
         BigDecimal sa = sumSportsAesthetics(rec.getId());
         BigDecimal lp = sumLaborPractice(rec.getId());
 
@@ -211,18 +213,19 @@ public class EvaluationService {
         return sum;
     }
 
-    private BigDecimal sumOrganizationWork(Long evalId) {
+    /** 组织工作：任多项职务者以最高职务类别计分 */
+    private BigDecimal maxOrganizationWork(Long evalId) {
         List<OrganizationWorkItem> items = owMapper.selectList(
                 Wrappers.<OrganizationWorkItem>lambdaQuery()
                         .eq(OrganizationWorkItem::getEvaluationId, evalId)
                         .ne(OrganizationWorkItem::getReviewStatus, "REJECTED"));
-        BigDecimal sum = BigDecimal.ZERO;
+        BigDecimal max = BigDecimal.ZERO;
         for (OrganizationWorkItem item : items) {
             BigDecimal s = item.getScore() == null
                     ? calc.organizationWork(item) : item.getScore();
-            sum = sum.add(s);
+            if (s.compareTo(max) > 0) max = s;
         }
-        return sum;
+        return max;
     }
 
     private BigDecimal sumSportsAesthetics(Long evalId) {
@@ -251,5 +254,55 @@ public class EvaluationService {
             sum = sum.add(s);
         }
         return sum;
+    }
+
+    // ===== P0-1 新增：全科合格校验 =====
+
+    /**
+     * 检查学生该学年所有课程是否全部合格（≥60分）
+     * @return 不合格的课程列表，空列表表示全部合格
+     */
+    public List<CourseGrade> checkAllCoursesPass(Long studentId, Long yearId) {
+        List<CourseGrade> grades = courseGradeMapper.selectList(
+                Wrappers.<CourseGrade>lambdaQuery()
+                        .eq(CourseGrade::getStudentId, studentId)
+                        .eq(CourseGrade::getAcademicYearId, yearId));
+        if (grades == null || grades.isEmpty()) return Collections.emptyList();
+        return grades.stream()
+                .filter(g -> g.getScore() != null && g.getScore().compareTo(BigDecimal.valueOf(60)) < 0)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * 计算外语课加权平均分
+     * 筛选课程名称包含"英语"/"外语"的课程
+     */
+    public BigDecimal calculateForeignLangAvg(Long studentId, Long yearId) {
+        List<CourseGrade> grades = courseGradeMapper.selectList(
+                Wrappers.<CourseGrade>lambdaQuery()
+                        .eq(CourseGrade::getStudentId, studentId)
+                        .eq(CourseGrade::getAcademicYearId, yearId));
+        BigDecimal sumProduct = BigDecimal.ZERO;
+        BigDecimal sumCredit = BigDecimal.ZERO;
+        for (CourseGrade g : grades) {
+            if (g.getScore() == null || g.getCredit() == null) continue;
+            String name = g.getCourseName();
+            if (name == null) continue;
+            if (name.contains("英语") || name.contains("外语") || name.toLowerCase().contains("english")) {
+                sumProduct = sumProduct.add(g.getScore().multiply(g.getCredit()));
+                sumCredit = sumCredit.add(g.getCredit());
+            }
+        }
+        if (sumCredit.compareTo(BigDecimal.ZERO) == 0) return null;
+        return sumProduct.divide(sumCredit, 4, RoundingMode.HALF_UP);
+    }
+
+    /** 检查学生是否有未解除的处分 */
+    public boolean hasUnresolvedDiscipline(Long studentId) {
+        Long count = disciplineMapper.selectCount(
+                Wrappers.<DisciplineRecord>lambdaQuery()
+                        .eq(DisciplineRecord::getStudentId, studentId)
+                        .eq(DisciplineRecord::getIsResolved, false));
+        return count != null && count > 0;
     }
 }

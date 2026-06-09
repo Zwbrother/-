@@ -100,7 +100,10 @@ export default function BasicEvaluation() {
                      columns={[
                        { title: '评议来源', dataIndex: 'appraiserType', render: (t) => ({SELF:'自评',STUDENT_REP:'学生代表',COUNSELOR:'辅导员'}[t]||t) },
                        ...DIMENSIONS.map(d => ({ title: d.label, dataIndex: d.key, render: v => Number(v||0) })),
-                       { title: '合计', dataIndex: 'total', render: v => Number(v||0).toFixed(1) },
+                       { title: '合计', render: (_, r) => {
+                         const sum = DIMENSIONS.reduce((s, d) => s + Number(r[d.key] || 0), 0)
+                         return <strong>{sum.toFixed(1)}</strong>
+                       }},
                        { title: '操作', render: (_, r) => (
                          <Space>
                            <Button size="small" icon={<EditOutlined />}
@@ -124,9 +127,62 @@ export default function BasicEvaluation() {
               }}>+ 新增记实</Button>
               <Table size="small" rowKey="id" dataSource={data.moralRecords || []} pagination={false} scroll={{ x: 800 }}
                      columns={[
-                       { title: '类型', dataIndex: 'itemType', render: t => ({VOLUNTEER:'志愿服务',DISCIPLINE:'处分扣分',HONOR:'荣誉',COLLECTIVE_HONOR:'集体荣誉'}[t]||t) },
+                       { title: '类型', dataIndex: 'itemType', sorter: (a, b) => {
+                         const order = { HONOR: 1, COLLECTIVE_HONOR: 2, DISCIPLINE: 3, VOLUNTEER: 4 }
+                         return (order[a.itemType] || 99) - (order[b.itemType] || 99)
+                       }, render: t =>
+                         ({VOLUNTEER:'志愿服务',DISCIPLINE:'处分扣分',HONOR:'荣誉',COLLECTIVE_HONOR:'集体荣誉'}[t]||t)
+                       },
+                       { title: '等级/详情', render: (_, r) => {
+                         const HONOR_MAP = {NATIONAL:{label:'国家级',s:20},PROVINCIAL:{label:'省级',s:15},CITY:{label:'市级',s:12},SCHOOL:{label:'校级',s:8},COLLEGE:{label:'院级',s:5},CLASS:{label:'班级',s:2}}
+                         const CH_MAP = {EXCELLENT_STUDY_STYLE:{label:'学风优良班',s:5},SPECIAL_STUDY_STYLE:{label:'学风特优班',s:10},ADVANCED_LEAGUE:{label:'先进团支部',s:5},MAY4TH_LEAGUE:{label:'五四团支部',s:8}}
+                         // 按分值反查标签（用于 honorLevel 为空的旧数据兼容）
+                         const guessByScore = (map, s) => Object.values(map).find(x => x.s === s)
+                         // 获取delta：rawValue > score(已计算) > map默认值
+                         const getDelta = (map, key) => {
+                           const raw = Number(r.rawValue)
+                           if (!isNaN(raw) && raw > 0) return raw
+                           const s = Number(r.score)
+                           if (!isNaN(s) && s > 0) return s
+                           const entry = map[key]
+                           return entry ? entry.s : 0
+                         }
+                         const getDiscDelta = () => {
+                           const raw = Number(r.rawValue)
+                           return !isNaN(raw) && raw > 0 ? -raw : -(Number(r.rawValue) || 0)
+                         }
+                         const fmt = (label, delta) => {
+                           const color = delta > 0 ? '#52c41a' : delta < 0 ? '#ff4d4f' : '#666'
+                           const sign = delta > 0 ? '+' : ''
+                           const d = delta.toFixed(1).replace(/\.0$/,'')
+                           return <span>{label} <span style={{color,fontWeight:'bold'}}>({sign}{d})</span></span>
+                         }
+                         if (r.itemType === 'HONOR') {
+                           const delta = getDelta(HONOR_MAP, r.honorLevel)
+                           const entry = HONOR_MAP[r.honorLevel] || guessByScore(HONOR_MAP, delta)
+                           const label = entry ? entry.label : '荣誉'
+                           return fmt(label, delta)
+                         }
+                         if (r.itemType === 'DISCIPLINE') {
+                           const delta = getDiscDelta()
+                           // honorLevel 存储中文处分类型（如"警告"），为空时兜底"处分"
+                           const label = r.honorLevel || '处分'
+                           return fmt(label, delta)
+                         }
+                         if (r.itemType === 'COLLECTIVE_HONOR') {
+                           const delta = getDelta(CH_MAP, r.honorLevel)
+                           const entry = CH_MAP[r.honorLevel] || guessByScore(CH_MAP, delta)
+                           const label = entry ? entry.label : '集体荣誉'
+                           return fmt(label, delta)
+                         }
+                         if (r.itemType === 'VOLUNTEER') {
+                           const h = Number(r.hours) || 0
+                           const delta = Math.min(Math.floor(h/4)*4 + (h%4>0?2:0), 10)
+                           return fmt(`${h}h`, delta)
+                         }
+                         return null
+                       }},
                        { title: '说明', dataIndex: 'description' },
-                       { title: '得分', dataIndex: 'score', render: v => Number(v||0).toFixed(2) },
                        { title: '审核', dataIndex: 'reviewStatus', render: STATUS_TAG },
                        { title: '驳回原因', dataIndex: 'reviewRemark', render: (v, r) => r.reviewStatus === 'REJECTED' ? <span style={{color:'red'}}>{v}</span> : null },
                        { title: '附件', dataIndex: 'attachmentUrl', render: url => url ? <Image src={url} width={40} /> : <Tag color="orange">无</Tag> },
@@ -187,36 +243,178 @@ function AppraisalForm({ form }) {
 
 function MoralRecordForm({ form, handleUpload }) {
   const type = Form.useWatch('itemType', form)
+  const honorLevel = Form.useWatch('honorLevel', form)
+  const rawValue = Form.useWatch('rawValue', form)
+
+  // 统一配置：{ value, label, score (固定分值) }
+  // 荣誉表彰为固定分值（国家级20/省级15/市级12/校级8/院级5/班级2）
+  // 院级和班级加分累计上限20分，校级及以上不设限
+  const HONOR_LEVELS = [
+    { value: 'NATIONAL', label: '国家级', score: 20 },
+    { value: 'PROVINCIAL', label: '省级', score: 15 },
+    { value: 'CITY', label: '市级', score: 12 },
+    { value: 'SCHOOL', label: '校级', score: 8 },
+    { value: 'COLLEGE', label: '院级', score: 5 },
+    { value: 'CLASS', label: '班级', score: 2 },
+  ]
+
+  // 处分为范围值（min/max），允许在范围内调整
+  const DISCIPLINE_TYPES = [
+    { value: '通报批评', label: '通报批评', min: 0.5, max: 2, def: 2 },
+    { value: '警告', label: '警告', min: 2, max: 4, def: 4 },
+    { value: '严重警告', label: '严重警告', min: 4, max: 6, def: 6 },
+    { value: '记过', label: '记过', min: 8, max: 10, def: 10 },
+    { value: '留校察看', label: '留校察看', min: 8, max: 10, def: 10 },
+    { value: '违法', label: '违法', min: 10, max: 30, def: 30 },
+  ]
+
+  // 集体荣誉为固定分值（学风优良班5/学风特优班10/先进团支部5/五四团支部8）
+  const COLLECTIVE_HONOR_TYPES = [
+    { value: 'EXCELLENT_STUDY_STYLE', label: '学风优良班', score: 5 },
+    { value: 'SPECIAL_STUDY_STYLE', label: '学风特优班', score: 10 },
+    { value: 'ADVANCED_LEAGUE', label: '先进团支部', score: 5 },
+    { value: 'MAY4TH_LEAGUE', label: '五四团支部', score: 8 },
+  ]
+
+  // 根据当前 type 获取对应的配置列表
+  const getLevelList = () => {
+    if (type === 'HONOR') return HONOR_LEVELS
+    if (type === 'DISCIPLINE') return DISCIPLINE_TYPES
+    if (type === 'COLLECTIVE_HONOR') return COLLECTIVE_HONOR_TYPES
+    return []
+  }
+
+  // 查找当前选中项的配置
+  const getLevelInfo = () => {
+    const list = getLevelList()
+    return list.find(item => item.value === honorLevel) || null
+  }
+
+  // 是否有范围（处分是可调的，荣誉是固定的）
+  const isRanged = () => {
+    const info = getLevelInfo()
+    return info && info.min !== undefined && info.max !== undefined
+  }
+
+  // 获取当前显示分值（固定分值或范围内当前值）
+  const getDisplayScore = () => {
+    const info = getLevelInfo()
+    if (!info) return 0
+    // 固定分值
+    if (info.score !== undefined) return info.score
+    // 范围值
+    return rawValue != null ? rawValue : info.def
+  }
+
+  // 加减分（仅处分范围可用，0.5步长）
+  const adjustScore = (delta) => {
+    const info = getLevelInfo()
+    if (!info || info.min === undefined) return
+    const current = rawValue != null ? rawValue : info.def
+    const next = Math.round((current + delta) * 10) / 10
+    if (next >= info.min && next <= info.max) {
+      form.setFieldsValue({ rawValue: next })
+    }
+  }
+
+  // 切换等级/类型时重置分值
+  const handleLevelChange = (value) => {
+    const list = getLevelList()
+    const info = list.find(item => item.value === value)
+    if (info) {
+      if (info.score !== undefined) {
+        form.setFieldsValue({ honorLevel: value, rawValue: info.score })
+      } else {
+        form.setFieldsValue({ honorLevel: value, rawValue: info.def })
+      }
+    }
+  }
+
+  // 标签文字：荣誉→"加分"，处分→"扣分"，集体荣誉→"加分"
+  const scoreLabel = type === 'DISCIPLINE' ? '扣分' : '加分'
+
   return (
-    <Form form={form} layout="vertical" initialValues={{ itemType: 'VOLUNTEER' }}>
+    <Form form={form} layout="vertical" initialValues={{ itemType: 'HONOR' }}>
       <Form.Item name="itemType" label="类型" rules={[{ required: true }]}>
-        <Select options={[
-          {value:'VOLUNTEER',label:'志愿服务'},{value:'DISCIPLINE',label:'处分扣分'},
-          {value:'HONOR',label:'荣誉表彰'},{value:'COLLECTIVE_HONOR',label:'集体荣誉'}
+        <Select onChange={() => {
+          form.setFieldsValue({ honorLevel: undefined, rawValue: undefined })
+        }} options={[
+          {value:'HONOR',label:'荣誉表彰'},{value:'DISCIPLINE',label:'处分扣分'},
+          {value:'COLLECTIVE_HONOR',label:'集体荣誉'}
         ]} />
       </Form.Item>
-      <Form.Item name="description" label="说明" rules={[{ required: true }]}>
-        <Input.TextArea rows={2} placeholder="例：迎新志愿者 / 校三好学生" />
-      </Form.Item>
-      {type === 'VOLUNTEER' && (
-        <Form.Item name="hours" label="志愿时长（小时）" rules={[{ required: true }]} extra="每4小时=1次(4分)，上限10分">
-          <InputNumber min={0} style={{ width: '100%' }} />
-        </Form.Item>
+
+      {/* ===== 荣誉表彰 / 处分扣分 / 集体荣誉（统一布局） ===== */}
+      {(type === 'HONOR' || type === 'DISCIPLINE' || type === 'COLLECTIVE_HONOR') && (
+        <>
+          <Form.Item name="honorLevel" label={type==='DISCIPLINE'?'处分类型':type==='HONOR'?'荣誉等级':'集体荣誉类型'}
+                     rules={[{ required: true, message: '请选择' }]}>
+            <Select onChange={handleLevelChange} placeholder="请选择" options={
+              getLevelList().map(item => ({
+                value: item.value,
+                label: item.score !== undefined
+                  ? `${item.label} (${type==='DISCIPLINE'?'扣':'+'}${item.score}分)`
+                  : `${item.label} (${type==='DISCIPLINE'?'扣':'+'}${item.min}~${item.max}分)`
+              }))
+            } />
+          </Form.Item>
+          {honorLevel && (() => {
+            const info = getLevelInfo()
+            if (!info) return null
+            const ranged = isRanged()
+            const currentScore = getDisplayScore()
+            return (
+              <Form.Item label={scoreLabel} required>
+                <Space size="middle" align="center">
+                  {ranged && (
+                    <Button onClick={() => adjustScore(-0.5)}
+                            disabled={currentScore <= info.min}>
+                      -0.5
+                    </Button>
+                  )}
+                  {ranged ? (
+                    <InputNumber min={info.min} max={info.max} step={0.5}
+                                 value={currentScore}
+                                 style={{ width: 100, textAlign: 'center' }}
+                                 readOnly />
+                  ) : (
+                    <span style={{ fontSize: 18, fontWeight: 'bold', color: '#1677ff' }}>
+                      {type==='DISCIPLINE'?'-':'+'}{currentScore} 分
+                    </span>
+                  )}
+                  {ranged && (
+                    <Button onClick={() => adjustScore(0.5)}
+                            disabled={currentScore >= info.max}>
+                      +0.5
+                    </Button>
+                  )}
+                  <span style={{ color: '#888', fontSize: 12, marginLeft: 8 }}>
+                    {ranged
+                      ? `（范围：${info.min} ~ ${info.max}，步长 0.5）`
+                      : '（固定分值）'}
+                  </span>
+                </Space>
+              </Form.Item>
+            )
+          })()}
+          <Form.Item name="description" label="说明" rules={[{ required: true }]}>
+            <Input placeholder={type==='DISCIPLINE'?'请说明处分原因':type==='HONOR'?'例：省级三好学生 / 国家奖学金':'例：2024-2025学年学风优良班'} />
+          </Form.Item>
+        </>
       )}
-      {type === 'DISCIPLINE' && (
-        <Form.Item name="rawValue" label="处分类型" rules={[{ required: true }]}>
-          <Select options={[
-            {value:1,label:'通报批评(-2)'},{value:2,label:'警告(-4)'},{value:3,label:'严重警告(-6)'},
-            {value:4,label:'记过(-10)'},{value:5,label:'留校察看(-10)'},{value:6,label:'违法(-30)'}
-          ]} />
-        </Form.Item>
-      )}
+
+      {/* ===== 上传附件 ===== */}
       <Form.Item name="attachmentUrl" label="证明材料" valuePropName="fileList"
                  getValueFromEvent={e => Array.isArray(e) ? e : e?.fileList}
                  rules={[{ required: true, message: '请上传证明材料' }]}>
         <Upload maxCount={1} accept="image/*,.pdf" customRequest={handleUpload} listType="picture">
           <Button icon={<UploadOutlined />}>点击上传</Button>
         </Upload>
+      </Form.Item>
+
+      {/* 隐藏字段：rawValue 存储实际分值 */}
+      <Form.Item name="rawValue" hidden>
+        <InputNumber />
       </Form.Item>
     </Form>
   )

@@ -45,7 +45,7 @@ public class ScoreCalcService {
                 .setScale(2, RoundingMode.HALF_UP);
     }
 
-    private BigDecimal sumSixDimensions(MoralAppraisal a) {
+    public BigDecimal sumSixDimensions(MoralAppraisal a) {
         return nz(a.getPoliticalLiteracy())
                 .add(nz(a.getLegalAwareness()))
                 .add(nz(a.getMentalQuality()))
@@ -56,79 +56,130 @@ public class ScoreCalcService {
     }
 
     /**
-     * 品德记实分 = 基准60分 + 荣誉加分 - 处分扣分
-     * 荣誉：国家级20/省级15/市级12/校级8/院级5
-     * 处分：违法-10~-30/留校察看-10/记过-8~-10/严重警告-4~-6/警告-2~-4/通报批评-0.5~-2
-     * 院班活动总加分不超过20分
-     * 集体荣誉加分累计不超过20分
+     * 单条品德记实项的增减分（不含基准分60）
+     * <p>正值=加分，负值=扣分</p>
+     */
+    public BigDecimal moralRecordItemDelta(MoralRecordItem item) {
+        if (item == null || item.getItemType() == null) return ZERO;
+        return switch (item.getItemType()) {
+            case "VOLUNTEER" -> {
+                BigDecimal hours = nz(item.getHours());
+                int fullSessions = hours.divide(BigDecimal.valueOf(4), 0, RoundingMode.FLOOR).intValue();
+                BigDecimal extra = hours.remainder(BigDecimal.valueOf(4)).compareTo(ZERO) > 0
+                        ? BigDecimal.valueOf(2) : ZERO;
+                yield BigDecimal.valueOf(fullSessions * 4L).add(extra).min(BigDecimal.TEN);
+            }
+            case "DISCIPLINE" -> nz(item.getRawValue()).negate();
+            case "HONOR" -> {
+                // honorLevel 已设置时以固定分值为准，rawValue 仅作旧数据兜底
+                if (item.getHonorLevel() != null) {
+                    yield honorPoint(item.getHonorLevel());
+                }
+                BigDecimal raw = item.getRawValue();
+                yield raw != null && raw.compareTo(ZERO) > 0 ? raw : ZERO;
+            }
+            case "COLLECTIVE_HONOR" -> {
+                if (item.getHonorLevel() != null) {
+                    yield collectiveHonorPoint(item.getHonorLevel());
+                }
+                BigDecimal raw = item.getRawValue();
+                yield raw != null && raw.compareTo(ZERO) > 0 ? raw : ZERO;
+            }
+            default -> ZERO;
+        };
+    }
+
+    /**
+     * 品德记实总分 = 基准60分 + Σ各项增减分
+     * <p>
+     * 荣誉表彰（个人）：国家级20 / 省级15 / 市级12 / 校级8 / 院级5<br>
+     * 集体荣誉（学风建设）：学风优良班5 / 学风特优班10 / 先进团支部5 / 五四团支部8<br>
+     * 处分扣分（波动范围）：通报批评0.5~2 / 警告2~4 / 严重警告4~6 / 记过8~10 / 留校察看10 / 违法10~30<br>
+     * 院班活动总加分不超过20分，集体荣誉加分累计不超过20分
+     * </p>
+     */
+    /**
+     * 品德记实总分 = 基准60分 + Σ各项增减分
+     * <p>
+     * 校级及以上荣誉（NATIONAL/PROVINCIAL/CITY/SCHOOL）：不设上限<br>
+     * 院级+班级荣誉（COLLEGE/CLASS）：合计上限20分<br>
+     * 集体荣誉：上限20分<br>
+     * 处分扣分：无上限（负值累加）
+     * </p>
      */
     public BigDecimal moralRecordScore(List<MoralRecordItem> items) {
         BigDecimal base = BigDecimal.valueOf(60);
-        BigDecimal honorPlus = ZERO;
-        BigDecimal collectivePlus = ZERO;
+        BigDecimal honorPlus = ZERO;       // 校级及以上，不设限
+        BigDecimal lowLevelPlus = ZERO;    // 院级+班级，上限20
+        BigDecimal collectivePlus = ZERO;  // 集体荣誉，上限20
         BigDecimal penalty = ZERO;
 
         for (MoralRecordItem item : items) {
-            if (item.getScore() != null) {
-                // 已经预计算过了
-                BigDecimal s = item.getScore();
+            // 旧数据兼容：有 score 但没有 honorLevel 的记录，优先用 rawValue
+            if (item.getScore() != null && item.getHonorLevel() == null
+                    && (item.getItemType() == null || !item.getItemType().equals("DISCIPLINE"))) {
+                // rawValue 更可能是真实增减分，score 可能是旧版存储的异常值（如基准分60）
+                BigDecimal s = item.getRawValue() != null && item.getRawValue().compareTo(ZERO) > 0
+                        ? item.getRawValue()
+                        : item.getScore();
                 if (s.compareTo(ZERO) > 0) {
-                    honorPlus = honorPlus.add(s);
+                    switch (nullSafe(item.getItemType())) {
+                        case "COLLECTIVE_HONOR" -> collectivePlus = collectivePlus.add(s);
+                        default -> honorPlus = honorPlus.add(s);
+                    }
                 } else {
                     penalty = penalty.add(s);
                 }
                 continue;
             }
-            switch (item.getItemType()) {
-                case "VOLUNTEER" -> {
-                    BigDecimal hours = nz(item.getHours());
-                    int fullSessions = hours.divide(BigDecimal.valueOf(4), 0, RoundingMode.FLOOR).intValue();
-                    BigDecimal extra = hours.remainder(BigDecimal.valueOf(4)).compareTo(ZERO) > 0
-                            ? BigDecimal.valueOf(2) : ZERO;
-                    BigDecimal v = BigDecimal.valueOf(fullSessions * 4L).add(extra);
-                    honorPlus = honorPlus.add(v.min(BigDecimal.TEN));
+            BigDecimal delta = moralRecordItemDelta(item);
+            if (delta.compareTo(ZERO) >= 0) {
+                switch (nullSafe(item.getItemType())) {
+                    case "COLLECTIVE_HONOR" -> collectivePlus = collectivePlus.add(delta);
+                    case "HONOR" -> {
+                        String level = nullSafe(item.getHonorLevel());
+                        if ("COLLEGE".equals(level) || "CLASS".equals(level)) {
+                            lowLevelPlus = lowLevelPlus.add(delta);
+                        } else {
+                            honorPlus = honorPlus.add(delta);
+                        }
+                    }
+                    default -> honorPlus = honorPlus.add(delta);
                 }
-                case "DISCIPLINE" -> {
-                    int code = item.getRawValue() == null ? 0 : item.getRawValue().intValue();
-                    int p = switch (code) {
-                        case 1 -> 2;   // 通报批评
-                        case 2 -> 4;   // 警告
-                        case 3 -> 6;   // 严重警告
-                        case 4 -> 10;  // 记过
-                        case 5 -> 10;  // 留校察看
-                        case 6 -> 30;  // 违法
-                        default -> 0;
-                    };
-                    penalty = penalty.subtract(BigDecimal.valueOf(p));
-                }
-                case "HONOR" -> {
-                    String level = nullSafe(item.getDescription());
-                    BigDecimal h = switch (level) {
-                        case "NATIONAL" -> BigDecimal.valueOf(20);
-                        case "PROVINCIAL" -> BigDecimal.valueOf(15);
-                        case "CITY" -> BigDecimal.valueOf(12);
-                        case "SCHOOL" -> BigDecimal.valueOf(8);
-                        case "COLLEGE" -> BigDecimal.valueOf(5);
-                        default -> ZERO;
-                    };
-                    honorPlus = honorPlus.add(h);
-                }
-                case "COLLECTIVE_HONOR" -> {
-                    BigDecimal c = switch (nullSafe(item.getDescription())) {
-                        case "优良学风班" -> BigDecimal.valueOf(5);
-                        case "学风特优班" -> BigDecimal.valueOf(10);
-                        case "先进团支部" -> BigDecimal.valueOf(5);
-                        case "五四团支部" -> BigDecimal.valueOf(8);
-                        default -> ZERO;
-                    };
-                    collectivePlus = collectivePlus.add(c);
-                }
+            } else {
+                penalty = penalty.add(delta);
             }
         }
-        honorPlus = honorPlus.min(BigDecimal.valueOf(20)); // 院班活动上限
+        lowLevelPlus = lowLevelPlus.min(BigDecimal.valueOf(20));     // 院班活动上限
         collectivePlus = collectivePlus.min(BigDecimal.valueOf(20)); // 集体荣誉上限
-        return base.add(honorPlus).add(collectivePlus).add(penalty)
+        return base.add(honorPlus).add(lowLevelPlus).add(collectivePlus).add(penalty)
                 .max(ZERO).setScale(2, RoundingMode.HALF_UP);
+    }
+
+    /** 个人荣誉表彰分值对照 */
+    private BigDecimal honorPoint(String honorLevel) {
+        if (honorLevel == null) return ZERO;
+        return switch (honorLevel) {
+            case "NATIONAL" -> BigDecimal.valueOf(20);
+            case "PROVINCIAL" -> BigDecimal.valueOf(15);
+            case "CITY" -> BigDecimal.valueOf(12);
+            case "SCHOOL" -> BigDecimal.valueOf(8);
+            case "COLLEGE" -> BigDecimal.valueOf(5);
+            case "CLASS" -> BigDecimal.valueOf(2);
+            default -> ZERO;
+        };
+    }
+
+    /** 集体荣誉分值对照（学风建设） */
+    private BigDecimal collectiveHonorPoint(String honorLevel) {
+        if (honorLevel == null) return ZERO;
+        return switch (honorLevel) {
+            case "EXCELLENT_STUDY_STYLE" -> BigDecimal.valueOf(5);   // 学风优良班
+            case "SPECIAL_STUDY_STYLE" -> BigDecimal.valueOf(10);    // 学风特优班
+            case "ADVANCED_LEAGUE" -> BigDecimal.valueOf(5);         // 先进团支部
+            case "MAY4TH_LEAGUE" -> BigDecimal.valueOf(8);           // 五四团支部
+            default -> ZERO;
+        };
     }
 
     /** 品德总分 = 评议分 × 70% + 记实分 × 30% */
@@ -274,19 +325,19 @@ public class ScoreCalcService {
     /** 专业技能计分-单项 */
     public BigDecimal professionalSkill(ProfessionalSkillItem item) {
         if (item == null || item.getItemType() == null) return ZERO;
-        return switch (item.getItemType()) {
+        BigDecimal score = switch (item.getItemType()) {
             case "CET4" -> {
-                int score = item.getSkillCategory() != null
+                int s = item.getSkillCategory() != null
                         ? Integer.parseInt(item.getSkillCategory()) : 0;
-                yield score >= 550 ? BigDecimal.valueOf(10)
-                        : score >= 425 ? BigDecimal.valueOf(6)
+                yield s >= 550 ? BigDecimal.valueOf(10)
+                        : s >= 425 ? BigDecimal.valueOf(6)
                         : ZERO;
             }
             case "CET6" -> {
-                int score = item.getSkillCategory() != null
+                int s = item.getSkillCategory() != null
                         ? Integer.parseInt(item.getSkillCategory()) : 0;
-                yield score >= 520 ? BigDecimal.valueOf(15)
-                        : score >= 425 ? BigDecimal.valueOf(12)
+                yield s >= 520 ? BigDecimal.valueOf(15)
+                        : s >= 425 ? BigDecimal.valueOf(12)
                         : ZERO;
             }
             case "COMPUTER" -> switch (nullSafe(item.getSkillLevel())) {
@@ -300,9 +351,19 @@ public class ScoreCalcService {
                 case "PRIMARY" -> BigDecimal.valueOf(10);
                 default -> ZERO;
             };
-            case "ENTRANCE_EXAM" -> BigDecimal.valueOf(12);
+            case "ENTRANCE_EXAM" -> switch (nullSafe(item.getEntranceExamResult())) {
+                case "PASSED_REEXAM" -> BigDecimal.valueOf(20);
+                case "PASSED_INITIAL" -> BigDecimal.valueOf(16);
+                default -> BigDecimal.valueOf(12);  // 参加并完成考试
+            };
             default -> ZERO;
         };
+        // 通过口语考试上浮2分（仅CET4/CET6适用）
+        if (Boolean.TRUE.equals(item.getOralExamPassed())
+                && ("CET4".equals(item.getItemType()) || "CET6".equals(item.getItemType()))) {
+            score = score.add(BigDecimal.valueOf(2));
+        }
+        return score;
     }
 
     /** 组织工作计分-单项 = (岗位分 + 绩效分) × 任期系数 */

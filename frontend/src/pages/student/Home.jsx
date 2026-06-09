@@ -45,7 +45,7 @@ export default function Home() {
           <Col span={4}><Statistic title="品德评议分" value={Number(e?.moralAppraisalScore || 0)} precision={2} /></Col>
           <Col span={4}><Statistic title="品德记实分" value={Number(e?.moralRecordScore || 0)} precision={2} /></Col>
           <Col span={4}><Statistic title="品德总分" value={Number(e?.moralTotal || 0)} precision={2} suffix="/ 100" /></Col>
-          <Col span={4}><Statistic title="加权平均分" value={Number(e?.academicWeightedAvg || 0)} precision={2} /></Col>
+          <Col span={4}><Statistic title="专业素质" value={Number(e?.academicWeightedAvg || 0)} precision={2} /></Col>
           <Col span={4}>
             <Card type="inner" size="small" title="基本项总分" style={{ textAlign: 'center' }}>
               <div className="score-num">{Number(e?.basicTotal || 0).toFixed(2)}</div>
@@ -54,7 +54,7 @@ export default function Home() {
           </Col>
         </Row>
         <div style={{ marginTop: 16, color: '#8c8c8c', fontSize: 12 }}>
-          公式：基本项总分 = 品德总分 × 30% + 加权平均分 × 70%
+          公式：基本项总分 = 品德总分 × 30% + 专业素质 × 70%
         </div>
       </Card>
 

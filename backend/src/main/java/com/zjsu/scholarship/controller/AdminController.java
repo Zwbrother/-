@@ -29,6 +29,9 @@ public class AdminController {
     private final ApplicationMapper applicationMapper;
     private final StudentMapper studentMapper;
     private final EvaluationRecordMapper evalMapper;
+    private final StudentRepresentativeMapper representativeMapper;
+    private final DisciplineRecordMapper disciplineMapper;
+    private final AppealRecordMapper appealMapper;
     private final RankingService rankingService;
     private final ImportService importService;
     private final DataSeedService dataSeedService;
@@ -36,7 +39,11 @@ public class AdminController {
     public AdminController(AcademicYearMapper yearMapper, ScholarshipProjectMapper projectMapper,
                            ScholarshipLevelMapper levelMapper, ScholarshipCriterionMapper criterionMapper,
                            ApplicationMapper applicationMapper, StudentMapper studentMapper,
-                           EvaluationRecordMapper evalMapper, RankingService rankingService,
+                           EvaluationRecordMapper evalMapper,
+                           StudentRepresentativeMapper representativeMapper,
+                           DisciplineRecordMapper disciplineMapper,
+                           AppealRecordMapper appealMapper,
+                           RankingService rankingService,
                            ImportService importService, DataSeedService dataSeedService) {
         this.yearMapper = yearMapper;
         this.projectMapper = projectMapper;
@@ -45,6 +52,9 @@ public class AdminController {
         this.applicationMapper = applicationMapper;
         this.studentMapper = studentMapper;
         this.evalMapper = evalMapper;
+        this.representativeMapper = representativeMapper;
+        this.disciplineMapper = disciplineMapper;
+        this.appealMapper = appealMapper;
         this.rankingService = rankingService;
         this.importService = importService;
         this.dataSeedService = dataSeedService;
@@ -112,6 +122,18 @@ public class AdminController {
         if (body.containsKey("projectName")) p.setProjectName((String) body.get("projectName"));
         if (body.containsKey("description")) p.setDescription((String) body.get("description"));
         if (body.containsKey("typeCode")) p.setTypeCode((String) body.get("typeCode"));
+        if (body.containsKey("foreignLangAvgMin") && body.get("foreignLangAvgMin") != null)
+            p.setForeignLangAvgMin(new BigDecimal(body.get("foreignLangAvgMin").toString()));
+        if (body.containsKey("foreignLangAvgFirst") && body.get("foreignLangAvgFirst") != null)
+            p.setForeignLangAvgFirst(new BigDecimal(body.get("foreignLangAvgFirst").toString()));
+        if (body.containsKey("requireCet4Pass"))
+            p.setRequireCet4Pass((Boolean) body.get("requireCet4Pass"));
+        if (body.containsKey("rankBasicMaxRatio") && body.get("rankBasicMaxRatio") != null)
+            p.setRankBasicMaxRatio(new BigDecimal(body.get("rankBasicMaxRatio").toString()));
+        if (body.containsKey("rankAbilityFirst") && body.get("rankAbilityFirst") != null)
+            p.setRankAbilityFirst(new BigDecimal(body.get("rankAbilityFirst").toString()));
+        if (body.containsKey("rankBasicFirst") && body.get("rankBasicFirst") != null)
+            p.setRankBasicFirst(new BigDecimal(body.get("rankBasicFirst").toString()));
         projectMapper.updateById(p);
         // 重新保存等级和条件
         levelMapper.delete(Wrappers.<ScholarshipLevel>lambdaQuery().eq(ScholarshipLevel::getProjectId, id));
@@ -290,6 +312,145 @@ public class AdminController {
         return R.ok(importService.importGrades(file, yearId));
     }
 
+    // ============ 学生代表管理 ============
+
+    @GetMapping("/representatives")
+    public R<List<Map<String, Object>>> representatives(@RequestParam(required = false) Long yearId) {
+        List<StudentRepresentative> reps = representativeMapper.selectList(
+                Wrappers.<StudentRepresentative>lambdaQuery()
+                        .eq(yearId != null, StudentRepresentative::getAcademicYearId, yearId));
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (StudentRepresentative rep : reps) {
+            Map<String, Object> m = new HashMap<>();
+            m.put("rep", rep);
+            m.put("student", studentMapper.selectById(rep.getStudentId()));
+            result.add(m);
+        }
+        return R.ok(result);
+    }
+
+    @PostMapping("/representatives")
+    @RequireRole("ADMIN")
+    public R<StudentRepresentative> addRepresentative(@RequestBody Map<String, Object> body) {
+        Long studentId = toLong(body.get("studentId"));
+        Long yearId = toLong(body.get("academicYearId"));
+        // 检查是否已存在
+        StudentRepresentative exist = representativeMapper.selectOne(
+                Wrappers.<StudentRepresentative>lambdaQuery()
+                        .eq(StudentRepresentative::getAcademicYearId, yearId)
+                        .eq(StudentRepresentative::getStudentId, studentId));
+        if (exist != null) throw new BusinessException("该学生已是本学年代表");
+
+        StudentRepresentative rep = new StudentRepresentative();
+        rep.setAcademicYearId(yearId);
+        rep.setStudentId(studentId);
+        rep.setClassName((String) body.get("className"));
+        rep.setElectedAt(java.time.LocalDateTime.now());
+        representativeMapper.insert(rep);
+        return R.ok(rep);
+    }
+
+    @DeleteMapping("/representatives/{id}")
+    @RequireRole("ADMIN")
+    public R<Void> removeRepresentative(@PathVariable Long id) {
+        representativeMapper.deleteById(id);
+        return R.ok();
+    }
+
+    @GetMapping("/representatives/check-ratio")
+    public R<Map<String, Object>> checkRepresentativeRatio(@RequestParam Long yearId) {
+        long totalStudents = studentMapper.selectCount(null);
+        long totalReps = representativeMapper.selectCount(
+                Wrappers.<StudentRepresentative>lambdaQuery()
+                        .eq(StudentRepresentative::getAcademicYearId, yearId));
+        BigDecimal ratio = totalStudents > 0
+                ? BigDecimal.valueOf(totalReps).multiply(BigDecimal.valueOf(100))
+                    .divide(BigDecimal.valueOf(totalStudents), 2, java.math.RoundingMode.HALF_UP)
+                : BigDecimal.ZERO;
+        Map<String, Object> result = new HashMap<>();
+        result.put("totalStudents", totalStudents);
+        result.put("totalReps", totalReps);
+        result.put("ratio", ratio);
+        result.put("meetsRequirement", ratio.compareTo(new BigDecimal("30")) >= 0);
+        return R.ok(result);
+    }
+
+    // ============ 处分管理 ============
+
+    @GetMapping("/discipline")
+    public R<List<Map<String, Object>>> disciplineRecords(@RequestParam(required = false) Long studentId) {
+        List<DisciplineRecord> records = disciplineMapper.selectList(
+                Wrappers.<DisciplineRecord>lambdaQuery()
+                        .eq(studentId != null, DisciplineRecord::getStudentId, studentId)
+                        .orderByDesc(DisciplineRecord::getCreatedAt));
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (DisciplineRecord r : records) {
+            Map<String, Object> m = new HashMap<>();
+            m.put("record", r);
+            m.put("student", studentMapper.selectById(r.getStudentId()));
+            result.add(m);
+        }
+        return R.ok(result);
+    }
+
+    @PostMapping("/discipline")
+    @RequireRole("ADMIN")
+    public R<DisciplineRecord> addDiscipline(@RequestBody DisciplineRecord record) {
+        record.setId(null);
+        record.setIsResolved(false);
+        record.setCreatedAt(java.time.LocalDateTime.now());
+        disciplineMapper.insert(record);
+        return R.ok(record);
+    }
+
+    @PutMapping("/discipline/{id}/resolve")
+    @RequireRole("ADMIN")
+    public R<DisciplineRecord> resolveDiscipline(@PathVariable Long id) {
+        DisciplineRecord r = disciplineMapper.selectById(id);
+        if (r == null) throw new BusinessException("记录不存在");
+        r.setIsResolved(true);
+        r.setResolvedAt(java.time.LocalDateTime.now());
+        disciplineMapper.updateById(r);
+        return R.ok(r);
+    }
+
+    @DeleteMapping("/discipline/{id}")
+    @RequireRole("ADMIN")
+    public R<Void> deleteDiscipline(@PathVariable Long id) {
+        disciplineMapper.deleteById(id);
+        return R.ok();
+    }
+
+    // ============ 申诉管理 ============
+
+    @GetMapping("/appeals")
+    public R<List<Map<String, Object>>> appeals(@RequestParam(required = false) String status) {
+        List<AppealRecord> records = appealMapper.selectList(
+                Wrappers.<AppealRecord>lambdaQuery()
+                        .eq(status != null && !status.isEmpty(), AppealRecord::getStatus, status)
+                        .orderByDesc(AppealRecord::getSubmittedAt));
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (AppealRecord r : records) {
+            Map<String, Object> m = new HashMap<>();
+            m.put("appeal", r);
+            m.put("student", studentMapper.selectById(r.getStudentId()));
+            if (r.getProjectId() != null) m.put("project", projectMapper.selectById(r.getProjectId()));
+            result.add(m);
+        }
+        return R.ok(result);
+    }
+
+    @PutMapping("/appeals/{id}/process")
+    public R<AppealRecord> processAppeal(@PathVariable Long id, @RequestBody Map<String, String> body) {
+        AppealRecord r = appealMapper.selectById(id);
+        if (r == null) throw new BusinessException("申诉不存在");
+        r.setStatus(body.get("status"));
+        r.setResponse(body.get("response"));
+        r.setRespondedAt(java.time.LocalDateTime.now());
+        appealMapper.updateById(r);
+        return R.ok(r);
+    }
+
     // ============ 辅助 ============
     private ScholarshipProject buildProjectFromBody(Map<String, Object> body) {
         ScholarshipProject p = new ScholarshipProject();
@@ -306,6 +467,18 @@ public class AdminController {
         p.setForeignLangRequirement((String) body.get("foreignLangRequirement"));
         if (body.containsKey("noDiscipline"))
             p.setNoDiscipline((Boolean) body.get("noDiscipline"));
+        if (body.containsKey("foreignLangAvgMin") && body.get("foreignLangAvgMin") != null)
+            p.setForeignLangAvgMin(new BigDecimal(body.get("foreignLangAvgMin").toString()));
+        if (body.containsKey("foreignLangAvgFirst") && body.get("foreignLangAvgFirst") != null)
+            p.setForeignLangAvgFirst(new BigDecimal(body.get("foreignLangAvgFirst").toString()));
+        if (body.containsKey("requireCet4Pass"))
+            p.setRequireCet4Pass((Boolean) body.get("requireCet4Pass"));
+        if (body.containsKey("rankBasicMaxRatio") && body.get("rankBasicMaxRatio") != null)
+            p.setRankBasicMaxRatio(new BigDecimal(body.get("rankBasicMaxRatio").toString()));
+        if (body.containsKey("rankAbilityFirst") && body.get("rankAbilityFirst") != null)
+            p.setRankAbilityFirst(new BigDecimal(body.get("rankAbilityFirst").toString()));
+        if (body.containsKey("rankBasicFirst") && body.get("rankBasicFirst") != null)
+            p.setRankBasicFirst(new BigDecimal(body.get("rankBasicFirst").toString()));
         return p;
     }
 
@@ -320,6 +493,10 @@ public class AdminController {
                 l.setLevelOrder(((Number) lv.get("levelOrder")).intValue());
                 l.setRatio(lv.get("ratio") == null ? null : new BigDecimal(lv.get("ratio").toString()));
                 l.setAmount(lv.get("amount") == null ? null : new BigDecimal(lv.get("amount").toString()));
+                if (lv.get("rankBasicMaxRatio") != null)
+                    l.setRankBasicMaxRatio(new BigDecimal(lv.get("rankBasicMaxRatio").toString()));
+                if (lv.get("rankAbilityMaxRatio") != null)
+                    l.setRankAbilityMaxRatio(new BigDecimal(lv.get("rankAbilityMaxRatio").toString()));
                 levelMapper.insert(l);
             }
         }

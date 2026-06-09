@@ -7,6 +7,8 @@ import StudentBasicEvaluation from './pages/student/BasicEvaluation.jsx'
 import StudentAbilityEvaluation from './pages/student/AbilityEvaluation.jsx'
 import StudentScholarships from './pages/student/Scholarships.jsx'
 import StudentApplications from './pages/student/Applications.jsx'
+import StudentGraduateExam from './pages/student/GraduateExam.jsx'
+import StudentAppeal from './pages/student/Appeal.jsx'
 import CounselorLayout from './layouts/CounselorLayout.jsx'
 import CounselorStudents from './pages/counselor/Students.jsx'
 import CounselorReview from './pages/counselor/Review.jsx'
@@ -17,8 +19,10 @@ import AdminYears from './pages/admin/Years.jsx'
 import AdminProjects from './pages/admin/Projects.jsx'
 import AdminRanking from './pages/admin/Ranking.jsx'
 import AdminImport from './pages/admin/Import.jsx'
+import AdminRepresentatives from './pages/admin/Representatives.jsx'
 import ResultsPublic from './pages/ResultsPublic.jsx'
 import ChangePassword from './pages/ChangePassword.jsx'
+import CounselorAppraisal from './pages/counselor/Appraisal.jsx'
 
 function Protected({ role, children }) {
   const { token, user } = useAuthStore()
@@ -48,6 +52,8 @@ export default function App() {
         <Route path="ability-eval" element={<StudentAbilityEvaluation />} />
         <Route path="scholarships" element={<StudentScholarships />} />
         <Route path="applications" element={<StudentApplications />} />
+        <Route path="graduate-exam" element={<StudentGraduateExam />} />
+        <Route path="appeal" element={<StudentAppeal />} />
         <Route path="password" element={<ChangePassword />} />
       </Route>
 
@@ -55,6 +61,7 @@ export default function App() {
         <Route index element={<CounselorStudents />} />
         <Route path="review" element={<CounselorReview />} />
         <Route path="applications" element={<CounselorApplications />} />
+        <Route path="appraisal" element={<CounselorAppraisal />} />
         <Route path="password" element={<ChangePassword />} />
       </Route>
 
@@ -64,6 +71,7 @@ export default function App() {
         <Route path="projects" element={<AdminProjects />} />
         <Route path="ranking" element={<AdminRanking />} />
         <Route path="import" element={<AdminImport />} />
+        <Route path="representatives" element={<AdminRepresentatives />} />
         <Route path="password" element={<ChangePassword />} />
       </Route>
 
