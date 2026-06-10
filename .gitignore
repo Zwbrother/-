@@ -1,0 +1,11 @@
+backend/target/
+frontend/node_modules/
+
+backend/data/*.db
+backend/data/*.lock.db
+
+backend-run.log
+frontend-run.log
+
+uploads/
+.vscode/
